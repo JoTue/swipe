@@ -1718,9 +1718,14 @@ void cpu_features()
 
 void clock_start(struct time_info * tip)
 {
-  tip->clk_tck = sysconf(_SC_CLK_TCK);
   time(& tip->t1);                 /* time(2)   */
+#ifdef _WIN32
+  tip->clk_tck = 1000;
+  tip->wc1 = GetTickCount();
+#else
+  tip->clk_tck = sysconf(_SC_CLK_TCK);
   tip->wc1 = times(& tip->times1); /* times (2) */
+#endif // _WIN32
 }
 
 void clock_stop(struct time_info * tip)
@@ -1729,7 +1734,11 @@ void clock_stop(struct time_info * tip)
   char buf[30];
   char timeformat[] = "%a, %e %b %Y %T UTC";
 
+#ifdef _WIN32
+  tip->wc2 = GetTickCount();
+#else
   tip->wc2 = times(& tip->times2);
+#endif // _WIN32
   time(& tip->t2);
 
   gmtime_r(&tip->t1, & tms);

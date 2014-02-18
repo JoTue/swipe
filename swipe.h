@@ -29,11 +29,20 @@
 #include <limits.h>
 #include <ctype.h>
 #include <sys/stat.h>
-#include <sys/times.h>
+#ifdef _WIN32
+  #include <time.h>
+#else
+  #include <sys/time.h>
+#endif
 #include <fcntl.h>
 #include <unistd.h>
-#include <sys/mman.h>
-#include <arpa/inet.h>
+#ifdef _WIN32
+  #include "lib/mman.h"
+  #include <winsock.h>
+#else
+  #include <sys/mman.h>
+  #include <arpa/inet.h>
+#endif
 #include <pthread.h>
 #include <getopt.h>
 #include <math.h>
@@ -47,9 +56,13 @@
 #include <libkern/OSByteOrder.h>
 #define bswap_32 OSSwapInt32
 #define bswap_64 OSSwapInt64
+#elif defined(_WIN32)
+  #include "lib/byteswap.h"
 #else
 #include <byteswap.h>
 #endif
+
+#include "lib/getpagesize.h"
 
 #ifndef LINE_MAX
 #define LINE_MAX 2048
@@ -181,7 +194,9 @@ struct db_thread_s;
 struct time_info
 {
   time_t t1, t2;
+#ifndef _WIN32
   struct tms times1, times2;
+#endif // _WIN32
   clock_t wc1, wc2;
   long clk_tck;
 

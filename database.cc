@@ -581,11 +581,11 @@ long db_open_xin(long symtype, const char * basename, db_volume_t * volume)
   strncpy(volume->time, p, datelen);
   volume->time[datelen] = 0;
   p += datelen;
-  if ((long)p & 3)
+  if ((intptr_t)p & 3)
     p++;
-  if ((long)p & 3)
+  if ((intptr_t)p & 3)
     p++;
-  if ((long)p & 3)
+  if ((intptr_t)p & 3)
     p++;
   volume->seqcount = bswap_32(*(UINT32*)p);
   p += 4;
@@ -1218,7 +1218,7 @@ void hexdump(char * address, long length)
     {
       if (i>0)
 	fprintf(stderr, "\n");
-      fprintf(stderr, "%016lx", (long) p);
+      fprintf(stderr, "%016lx", (uintptr_t) p);
     }
     fprintf(stderr, " %02x", (unsigned char) *p++);
   }
