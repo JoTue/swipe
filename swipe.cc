@@ -173,7 +173,11 @@ void * xmalloc(size_t size)
 {
   const size_t alignment = 16;
   void * t;
+#ifdef _WIN32
+  t = __mingw_aligned_malloc(size, alignment);
+#else
   posix_memalign(& t, alignment, size);
+#endif // _WIN32
   
   if (t==NULL)
     fatal("Unable to allocate enough memory.");
