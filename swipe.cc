@@ -807,7 +807,7 @@ void args_usage()
   fprintf(out, "  -c, --min_score=NUM        minimum score of sequences to show (1)\n");
   fprintf(out, "  -u, --max_score=NUM        maximum score of sequences to show (inf.)\n");
   fprintf(out, "  -a, --num_threads=NUM      number of threads to use [1-%d] (1)\n", MAX_THREADS);
-  fprintf(out, "  -m, --outfmt=NUM           output format [0,7-9=plain,xml,tsv,tsv+] (0)\n");
+  fprintf(out, "  -m, --outfmt=NUM           output format [0,7-9=plain,xml,tsv,tsv+,88=score only] (0)\n");
   fprintf(out, "  -I, --show_gis             show gi numbers in results (no)\n");
   fprintf(out, "  -p, --symtype=NAME/NUM     symbol type/translation [0-4] (1)\n");
   fprintf(out, "  -S, --strand=NAME/NUM      query strands to search [1-3] (3)\n");
@@ -1138,8 +1138,8 @@ void args_init(int argc, char **argv)
 
   if (strlen(databasename) == 0)
     fatal("No database specified.");
-  
-  if (!((view==0)||(view==7)||(view==8)||(view==9)||(view==99)))
+
+  if (!((view==0)||(view==7)||(view==8)||(view==9)||(view==88)||(view==99)))
     fatal("Illegal view type.");
   
   if ((gapopen < 0) || (gapextend < 0) || ((gapopen + gapextend) < 1))
@@ -2504,7 +2504,8 @@ void work()
   //  if (view == 0)
   //    clock_start(&ti);
 
-  align_threads();
+  if (view!=88)
+    align_threads();
   
 #if 0
   if (view == 0)

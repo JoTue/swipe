@@ -1949,6 +1949,51 @@ void hits_show_end(long view)
   }
 }
 
+void hits_show_score_only(struct db_thread_s * t)
+{
+  char * address;
+  long length;
+
+  for(long i=0; i<hits_count; i++)
+  {
+    char * s = query.description;
+    char c;
+    while ((c = *s++) && (c != ' '))
+      putc(c, out);
+
+    putc('\t', out);
+
+  struct hits_entry * h = hits_list + i;
+
+  db_mapheaders(t, h->seqno, h->seqno);
+
+  db_getheader(t, h->seqno, & address, & length);
+  h->header_length = length;
+  h->header_address = (char*) xmalloc(length);
+  memcpy(h->header_address, address, length);
+
+    db_showheader(t, hits_list[i].header_address,
+		  hits_list[i].header_length,
+		  1, 0, 0, LONG_MAX, 1, 0);
+
+    long score = hits_list[i].score;
+
+    if (stats_available)
+    {
+      double expect = Kmn * exp(- lambda * score);
+      fprintf(out, "\t%.2g", expect);
+      double bits = lambda_d_log2 * score - logK_d_log2;
+      fprintf(out, "\t%.1f", bits);
+    }
+    else
+    {
+      fprintf(out, "\t%ld", score);
+    }
+
+    fprintf(out, "\n");
+  }
+}
+
 void hits_show(long view, long show_gis)
 {
   // compute number of hits and alignments to actually show
@@ -1979,6 +2024,10 @@ void hits_show(long view, long show_gis)
   else if ((view==8)||(view==9))
   {
     hits_show_tsv(showalignments, view == 9, t);
+  }
+  else if (view==88)
+  {
+    hits_show_score_only(t);
   }
   else if (view==99)
   {
