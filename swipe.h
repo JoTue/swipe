@@ -32,7 +32,7 @@
 #ifdef _WIN32
   #include <time.h>
 #else
-  #include <sys/time.h>
+  #include <sys/times.h>
 #endif
 #include <fcntl.h>
 #include <unistd.h>
@@ -58,11 +58,10 @@
 #define bswap_64 OSSwapInt64
 #elif defined(_WIN32)
   #include "lib/byteswap.h"
+  #include "lib/getpagesize.h"
 #else
-#include <byteswap.h>
+  #include <byteswap.h>
 #endif
-
-#include "lib/getpagesize.h"
 
 #ifndef LINE_MAX
 #define LINE_MAX 2048
