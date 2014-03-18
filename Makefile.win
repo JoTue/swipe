@@ -40,7 +40,7 @@ LIBS=-lpthread
 #LINKFLAGS=$(COMMON)
 
 # GNU options
-CXX=g++
+CXX=x86_64-w64-mingw32-g++
 CXXFLAGS=$(COMPILEOPT) $(COMMON) -O3
 LINKFLAGS=$(COMMON)
 
@@ -53,7 +53,8 @@ clean :
 
 OBJS = database.o asnparse.o align.o matrices.o \
 	stats.o hits.o query.o \
-	search63.o search16.o search16s.o search7.o search7_ssse3.o
+	search63.o search16.o search16s.o search7.o search7_ssse3.o \
+        getpagesize.o mman.o
 
 DEPS = swipe.h Makefile
 

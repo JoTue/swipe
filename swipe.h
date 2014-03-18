@@ -37,7 +37,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #ifdef _WIN32
-  #include "lib/mman.h"
+  #include "mman.h"
   #include <winsock.h>
 #else
   #include <sys/mman.h>
@@ -57,8 +57,8 @@
 #define bswap_32 OSSwapInt32
 #define bswap_64 OSSwapInt64
 #elif defined(_WIN32)
-  #include "lib/byteswap.h"
-  #include "lib/getpagesize.h"
+  #include "byteswap.h"
+  #include "getpagesize.h"
 #else
   #include <byteswap.h>
 #endif
