@@ -599,7 +599,7 @@ inline void donormal7(__m128i * Sm,
 		      __m128i ** qp,
 		      __m128i * Qm,
 		      __m128i * Rm,
-		      long ql,
+		      uintptr_t ql,
 		      __m128i * Zm)
 {
 #ifdef DEBUG
@@ -673,7 +673,7 @@ inline void domasked7(__m128i * Sm,
 		      __m128i ** qp,
 		      __m128i * Qm, 
 		      __m128i * Rm, 
-		      long ql,      
+		      uintptr_t ql,
 		      __m128i * Zm,
 		      __m128i * Mm)
 {

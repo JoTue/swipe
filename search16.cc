@@ -113,7 +113,7 @@ inline void donormal16(volatile __m128i * Sm,  /* r9  */
 		       __m128i ** qp, /* rsi */
 		       __m128i * Qm,  /* rdx */
 		       __m128i * Rm,  /* rcx */
-		       long ql,       /* r8  */
+		       uintptr_t ql,  /* r8  */
 		       __m128i * Zm)
 {
   __asm__
@@ -177,7 +177,7 @@ inline void domasked16(volatile __m128i * Sm,
 		       __m128i ** qp,
 		       __m128i * Qm, 
 		       __m128i * Rm, 
-		       long ql,      
+		       uintptr_t ql,
 		       __m128i * Zm,
 		       __m128i * Mm)
 {
