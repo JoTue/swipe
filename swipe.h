@@ -32,7 +32,7 @@
 #ifdef _WIN32
   #include <time.h>
 #else
-  #include <sys/time.h>
+  #include <sys/times.h>
 #endif
 #include <fcntl.h>
 #include <unistd.h>
@@ -58,11 +58,10 @@
 #define bswap_64 OSSwapInt64
 #elif defined(_WIN32)
   #include "lib/byteswap.h"
+  #include "lib/getpagesize.h"
 #else
-#include <byteswap.h>
+  #include <byteswap.h>
 #endif
-
-#include "lib/getpagesize.h"
 
 #ifndef LINE_MAX
 #define LINE_MAX 2048
@@ -370,6 +369,7 @@ void hits_align(struct db_thread_s * t, long i);
 void hits_show_begin(long view);
 void hits_show_end(long view);
 void hits_show(long view, long show_gis);
+void hits_show_score_only();
 void hits_empty();
 void hits_exit();
 void hits_gethit(long i, long * seqno, long * score, 
