@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <limits.h>
 #include <ctype.h>
 #include <sys/stat.h>
@@ -62,6 +63,14 @@
 #else
   #include <byteswap.h>
 #endif
+
+#if defined(__MINGW32__)
+  #define free  _aligned_free
+  #if !defined(__MINGW64_VERSION_MAJOR)
+    #define _aligned_malloc __mingw_aligned_malloc 
+    #define _aligned_free  __mingw_aligned_free 
+  #endif // __MINGW64_VERSION_MAJOR
+#endif // __MINGW32__
 
 #ifndef LINE_MAX
 #define LINE_MAX 2048
@@ -100,6 +109,7 @@ void vector_print_word(WORD * vector);
 
 void * xmalloc(size_t size);
 void * xrealloc(void *ptr, size_t size);
+void xfree(void *ptr);
 
 
 extern long cpu_feature_ssse3;
@@ -110,7 +120,6 @@ extern const char * matrixname;
 extern long gapopen;
 extern long gapextend;
 extern long gapopenextend;
-extern long * score_matrix_63;
 extern long symtype;
 extern long matchscore;
 extern long mismatchscore;
@@ -120,7 +129,7 @@ extern long querystrands;
 extern double minexpect;
 extern double expect;
 extern long maxmatches;
-extern long threads;
+extern unsigned int threads;
 extern const char * databasename;
 extern long alignments;
 extern long queryno;
@@ -162,9 +171,9 @@ extern char BIAS;
 
 extern char * score_matrix_7;
 extern unsigned char * score_matrix_8;
-extern short * score_matrix_16;
-extern unsigned int * score_matrix_32;
-extern long * score_matrix_63;
+extern int16_t * score_matrix_16;
+extern int32_t * score_matrix_32;
+extern int64_t * score_matrix_63;
 
 struct sequence
 {
@@ -266,7 +275,7 @@ long fullsw(char * dseq,
 	    char * qseq,
 	    char * qend,
 	    long * hearray, 
-	    long * score_matrix,
+	    int64_t * score_matrix,
 	    BYTE gap_open_penalty,
 	    BYTE gap_extend_penalty);
 
@@ -274,7 +283,7 @@ void align(char * a_seq,
 	   char * b_seq,
 	   long M,
 	   long N,
-	   long * scorematrix,
+	   int64_t * scorematrix,
 	   long q,
 	   long r,
 	   long * a_begin,

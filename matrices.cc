@@ -323,9 +323,9 @@ char BIAS;
 
 char * score_matrix_7 = NULL;
 unsigned char * score_matrix_8 = NULL;
-short * score_matrix_16 = NULL;
-unsigned int * score_matrix_32 = NULL;
-long * score_matrix_63 = NULL;
+int16_t * score_matrix_16 = NULL;
+int32_t * score_matrix_32 = NULL;
+int64_t * score_matrix_63 = NULL;
 
 void score_matrix_dump()
 {
@@ -342,7 +342,7 @@ void score_matrix_dump()
     fprintf(out, "%2d %c ", i, sym_ncbi_aa[i]);
     for(int j=0; j<32; j++)
       {
-	fprintf(out, "%2ld", score_matrix_63[(i<<5) + j]);
+	fprintf(out, "%2I64d", score_matrix_63[(i<<5) + j]);
       }
     fprintf(out, "\n");
   }
@@ -523,9 +523,9 @@ void score_matrix_read()
   
   score_matrix_7 = (char *) xmalloc(32*32*sizeof(char));
   score_matrix_8 = (unsigned char *) xmalloc(32*32*sizeof(char));
-  score_matrix_16 = (short *) xmalloc(32*32*sizeof(short));
-  score_matrix_32 = (unsigned int *) xmalloc(32*32*sizeof(unsigned int));
-  score_matrix_63 = (long *) xmalloc(32*32*sizeof(long));
+  score_matrix_16 = (int16_t *) xmalloc(32*32*sizeof(int16_t));
+  score_matrix_32 = (int32_t *) xmalloc(32*32*sizeof(int32_t));
+  score_matrix_63 = (int64_t *) xmalloc(32*32*sizeof(int64_t));
   memset(score_matrix_63, -1, 32*32*8);
   
   if (symtype == 0)
@@ -582,8 +582,8 @@ void score_matrix_read()
       
       score_matrix_7[(a<<5) + b] = (char) sc;
       score_matrix_8[(a<<5) + b] = (unsigned char) (BIAS + sc);
-      score_matrix_32[(a<<5) + b] = (unsigned int) sc;
-      score_matrix_16[(a<<5) + b] = (short) sc;
+      score_matrix_32[(a<<5) + b] = (int32_t) sc;
+      score_matrix_16[(a<<5) + b] = (int16_t) sc;
     }
 }
 

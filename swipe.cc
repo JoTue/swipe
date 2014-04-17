@@ -68,7 +68,7 @@ long alignments;
 long maxmatches;
 long gapopen;
 long gapextend;
-long threads;
+unsigned int threads;
 long view;
 long symtype;
 long show_gis;
@@ -174,7 +174,7 @@ void * xmalloc(size_t size)
   const size_t alignment = 16;
   void * t;
 #ifdef _WIN32
-  t = __mingw_aligned_malloc(size, alignment);
+  t = _aligned_malloc(size, alignment);
 #else
   posix_memalign(& t, alignment, size);
 #endif // _WIN32
@@ -191,6 +191,15 @@ void * xrealloc(void *ptr, size_t size)
   if (!t)
     fatal("Unable to allocate enough memory.");
   return t;
+}
+
+void xfree(void *ptr)
+{
+#ifdef _WIN32
+  _aligned_free(ptr);
+#else
+  free(ptr);
+#endif // _WIN32
 }
 
 long alignedhits;
@@ -632,14 +641,14 @@ void * align_worker(void *)
 
 void align_threads()
 {
-  long t;
+  unsigned int t;
   void * status;
 
   align_threads_init();
   
   for(t=0; t<threads; t++)
     {
-      if (pthread_create(pthread_id + t, 0, align_worker, (void *)t))
+      if (pthread_create(pthread_id + t, 0, align_worker, &t)) // no thread safety issues because the worker does not access arg
 	fatal("Cannot create thread.");
     }
   
@@ -746,7 +755,7 @@ void args_show()
       fprintf(out, "Alignments shown:  %ld\n", alignments);
       fprintf(out, "Show gi's:         %ld\n", show_gis);
       fprintf(out, "Show taxid's:      %ld\n", show_taxid);
-      fprintf(out, "Threads:           %ld\n", threads);
+      fprintf(out, "Threads:           %d\n", threads);
       fprintf(out, "Symbol type:       %s\n", symtypestring[symtype]);
       if ((symtype == 2) || (symtype == 4))
 	fprintf(out, "Query genetic code:%s (%ld)\n", gencode_names[query_gencode-1], query_gencode);
@@ -1688,12 +1697,12 @@ void prepare_search(long par)
 
 void run_threads()
 {
-  long t;
+  unsigned int t;
   void * status;
 
   for(t=0; t<threads; t++)
     {
-      if (pthread_create(pthread_id + t, 0, worker, (void *)t))
+      if (pthread_create(pthread_id + t, 0, worker, &t))
 	fatal("Cannot create thread.");
     }
   

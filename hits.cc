@@ -1367,7 +1367,7 @@ void hits_show_xml_paralign(long showalignments,
   fprintf(out, "\t\t\t\t<alignmentLimit>%ld</alignmentLimit>\n", alignments);
   fprintf(out, "\t\t\t\t<subalignmentLimit>%ld</subalignmentLimit>\n", (long)1);
   fprintf(out, "\t\t\t</displayLimits>\n");
-  fprintf(out, "\t\t\t<threads>%ld</threads>\n", threads);
+  fprintf(out, "\t\t\t<threads>%d</threads>\n", threads);
   fprintf(out, "\t\t</options>\n");
 
   fprintf(out, "\t\t\t<searchInformation>\n");

@@ -782,7 +782,7 @@ search7
 
   long seq_id[CHANNELS];
   long next_id = 0;
-  unsigned done;
+  long done;
   
   memset(hearray, 0x80, qlen * 32);
 
