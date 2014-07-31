@@ -2,7 +2,7 @@
     SWIPE
     Smith-Waterman database searches with Inter-sequence Parallel Execution
 
-    Copyright (C) 2008-2013 Torbjorn Rognes, University of Oslo, 
+    Copyright (C) 2008-2013 Torbjorn Rognes, University of Oslo,
     Oslo University Hospital and Sencel Bioinformatics AS
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +18,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-    Contact: Torbjorn Rognes <torognes@ifi.uio.no>, 
-    Department of Informatics, University of Oslo, 
+    Contact: Torbjorn Rognes <torognes@ifi.uio.no>,
+    Department of Informatics, University of Oslo,
     PO Box 1080 Blindern, NO-0316 Oslo, Norway
 */
 
@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <limits.h>
+#include <inttypes.h>
 #include <ctype.h>
 #include <sys/stat.h>
 #ifdef _WIN32
@@ -48,6 +49,7 @@
 #include <getopt.h>
 #include <math.h>
 #include <x86intrin.h>
+#include <vector>
 
 #ifdef MPISWIPE
 #include <mpi.h>
@@ -67,10 +69,16 @@
 #if defined(__MINGW32__)
   #define free  _aligned_free
   #if !defined(__MINGW64_VERSION_MAJOR)
-    #define _aligned_malloc __mingw_aligned_malloc 
-    #define _aligned_free  __mingw_aligned_free 
+    #define _aligned_malloc __mingw_aligned_malloc
+    #define _aligned_free  __mingw_aligned_free
   #endif // __MINGW64_VERSION_MAJOR
 #endif // __MINGW32__
+
+#ifdef COMPO_ADJUSTMENT
+#include <algo/blast/core/blast_encoding.h> // for BLASTAA_SIZE
+#include <algo/blast/core/blast_stat.h>
+#include <algo/blast/composition_adjustment/composition_adjustment.h>
+#endif // COMPO_ADJUSTMENT
 
 #ifndef LINE_MAX
 #define LINE_MAX 2048
@@ -136,6 +144,7 @@ extern long queryno;
 extern long compute7;
 extern long show_taxid;
 extern long effdbsize;
+extern long mask;
 
 extern char map_ncbi_nt4[];
 extern char map_ncbi_nt16[];
@@ -178,6 +187,7 @@ extern int64_t * score_matrix_63;
 struct sequence
 {
   char * seq;
+  char * seq_unmasked;
   long len;
 };
 
@@ -191,6 +201,8 @@ struct query_s
   long strands;
   char * map;
   const char * sym;
+  Blast_AminoAcidComposition composition;
+  Blast_AminoAcidComposition composition_unmasked;
 };
 
 extern struct query_s query;
@@ -274,7 +286,7 @@ long fullsw(char * dseq,
 	    char * dend,
 	    char * qseq,
 	    char * qend,
-	    long * hearray, 
+	    long * hearray,
 	    int64_t * score_matrix,
 	    BYTE gap_open_penalty,
 	    BYTE gap_extend_penalty);
@@ -314,10 +326,11 @@ apt parser_create();
 void parser_destruct(apt p);
 
 long parse_header(apt p, unsigned char * buf, long len, long memb, long (*f)(long),
-		  long show_gis, long indent, long maxlen, 
+		  long show_gis, long indent, long maxlen,
 		  long linelen, long maxdeflines, long show_descr);
 
 void parse_getdeflines(apt p, unsigned char* buf, long len, long memb, long (*f_checktaxid)(long), long show_gis, long * deflines, char *** deflinetable);
+void parse_gettitle(apt p, unsigned char* buf, long len, long memb, long (*f_checktaxid)(long), long show_gis, char ** title);
 
 long parse_getdeflinecount(apt p, unsigned char * buf, long len,
                            long memb, long(*f_checktaxid)(long));
@@ -348,12 +361,16 @@ void db_parse_header(struct db_thread_s * t, char * address, long length,
 		     long show_gis,
 		     long * deflines, char *** deflinetable);
 
-void db_showheader(struct db_thread_s * t, char * address, long length, 
+void db_showheader(struct db_thread_s * t, char * address, long length,
 		   long show_gis, long indent,
 		   long maxlen, long linelen, long maxdeflines, long show_descr);
 void db_getshowheader(struct db_thread_s * t, long seqno,
 		      long show_gis, long indent,
 		      long maxlen, long linelen, long maxdeflines);
+
+void db_getheadertitle(struct db_thread_s * t, char * address, long length,
+		     long show_gis,
+		     char ** title);
 
 void db_show_fasta(struct db_thread_s * t, long seqno,
 		   long strand, long frame, long split);
@@ -363,12 +380,14 @@ long db_check_inclusion(struct db_thread_s * t, long seqno);
 void db_mapsequences(struct db_thread_s * t, long firstseqno, long lastseqno);
 void db_mapheaders(struct db_thread_s * t, long firstseqno, long lastseqno);
 
-void db_getsequence(struct db_thread_s * t, long seqno, long strand, long frame, 
+void db_getsequence(struct db_thread_s * t, long seqno, long strand, long frame,
 		    char ** addressp, long * lengthp, long * ntlenp, int c);
-void db_getheader(struct db_thread_s * t, long seqno, char ** address, 
+void db_getheader(struct db_thread_s * t, long seqno, char ** address,
 		  long * length);
+void db_print_seq_map(char * address, long length, const char * map);
 
-void hits_init(long descriptions, long alignments, long minscore, 
+
+void hits_init(long descriptions, long alignments, long minscore,
 	       long maxscore, double minexpect, double expect, int show_nostats);
 void hits_enter(long seqno, long score, long qstrand, long qframe,
 		long dstrand, long dframe, long align_hint, long bestq);
@@ -381,11 +400,11 @@ void hits_show(long view, long show_gis);
 void hits_show_score_only();
 void hits_empty();
 void hits_exit();
-void hits_gethit(long i, long * seqno, long * score, 
+void hits_gethit(long i, long * seqno, long * score,
 		 long * qstrand, long * qframe,
 		 long * dstrand, long * dframe);
-void hits_getfull(long i, 
-		  long * seqno, 
+void hits_getfull(long i,
+		  long * seqno,
 		  long * score,
 		  long * align_q_start,
 		  long * align_q_end,
@@ -405,9 +424,8 @@ void hits_enter_align_coord(long i,
 			    long dlennt);
 void hits_enter_align_string(long hitno, char * align, long align_len);
 
-
 long stats_getparams_nt(long matchscore,
-			long mismatchscore, 
+			long mismatchscore,
 			long gopen,
 			long gextend,
 			double * lambda,
@@ -433,5 +451,17 @@ long stats_getprefs(const char * matrix,
 typedef int Int4;
 typedef long Int8;
 typedef double Nlm_FloatHi;
+
+#ifdef COMPO_ADJUSTMENT
+static const int scaling_factor = 32;
+void compo_init(const char *matrixName, BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo);
+void compo_done(BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo);
+int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, const Uint1 *data, int nData, long gapopen, long gapextend, int *matchStart, int *queryStart, int *matchEnd, int *queryEnd);
+using namespace std;
+bool readFastaSequences(const char* dbFilePath, vector< vector<unsigned char> >* seqs);
+void hits_set_align_string(long hitno, char * align, long score_align);
+void hits_enter_score(long i, long score);
+void hits_enter_adjusted_score(long i, long score, long score_blast);
+#endif // COMPO_ADJUSTMENT
 
 #include "blastkar_partial.h"
