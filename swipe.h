@@ -201,8 +201,10 @@ struct query_s
   long strands;
   char * map;
   const char * sym;
+#ifdef COMPO_ADJUSTMENT
   Blast_AminoAcidComposition composition;
   Blast_AminoAcidComposition composition_unmasked;
+#endif // COMPO_ADJUSTMENT
 };
 
 extern struct query_s query;

@@ -30,9 +30,9 @@ MPI_LINK=`mpicxx --showme:link`
 COMMON=-g
 #COMMON=-pg -g
 
-COMPILEOPT=-Wall
+COMPILEOPT=-Wall -O3 -DCOMPO_ADJUSTMENT
 
-LIBS=-lpthread
+LIBS=-lpthread -lcomposition_adjustment -lxblast -lxncbi
 
 # Intel options
 #CXX=icpc
@@ -41,8 +41,8 @@ LIBS=-lpthread
 
 # GNU options
 CXX=g++
-CXXFLAGS=$(COMPILEOPT) $(COMMON) -O3
-LINKFLAGS=$(COMMON)
+CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../ncbi-blast-2.2.29+-src/c++/src -I../ncbi-blast-2.2.29+-src/c++/include -I../ncbi-blast-2.2.29+-src/c++/DebugMT/inc -I../ncbi-blast-2.2.29+-src/c++/src/algo/blast/core
+LINKFLAGS=$(COMMON) -L../ncbi-blast-2.2.29+-src/c++/DebugMT/lib
 
 PROG=swipe # mpiswipe
 
@@ -53,7 +53,8 @@ clean :
 
 OBJS = database.o asnparse.o align.o matrices.o \
 	stats.o hits.o query.o \
-	search63.o search16.o search16s.o search7.o search7_ssse3.o
+	search63.o search16.o search16s.o search7.o search7_ssse3.o \
+        fasta.o adjusted.o
 
 DEPS = swipe.h Makefile
 
