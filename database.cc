@@ -1282,15 +1282,15 @@ void db_getsequence(db_thread_t * t, long seqno, long strand, long frame,
     
       if (big_table)
       {
-	u_int64 entries = (amb_bytes - 4) / 8;
-	u_int64 * ambp64 = (u_int64*)(address + aoff + 4);
+	unsigned long entries = (amb_bytes - 4) / 8;
+	unsigned long * ambp64 = (unsigned long*)(address + aoff + 4);
 
 	for(unsigned long i=0; i < entries; i++)
 	{
-	  u_int64 e = bswap_64(*ambp64++);
-	  u_int64 n = e >> 60;
-	  u_int64 r = ((e >> 48) & 0xfff) + 1;
-	  u_int64 o = e & 0x00000fffffffffffULL;
+	  unsigned long e = bswap_64(*ambp64++);
+	  unsigned long n = e >> 60;
+	  unsigned long r = ((e >> 48) & 0xfff) + 1;
+	  unsigned long o = e & 0x00000fffffffffffULL;
 	
 	  for(unsigned long rr = 0; rr < r ; rr++)
 	    t->ntbuffer[c][o+rr] = n;

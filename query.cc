@@ -298,6 +298,11 @@ int query_read()
   char * query_sequence = (char *) xmalloc(size);
   query_sequence[0] = 0;
   long query_length = 0;
+  char * query_sequence_unmasked = NULL;
+  if (mask) {
+    query_sequence_unmasked = (char *) xmalloc(size);
+    query_sequence_unmasked[0] = 0;
+  }
  
   char * map;
   char m;
@@ -320,7 +325,18 @@ int query_read()
 	{
 	  size += LINE_MAX;
 	  query_sequence = (char*) xrealloc(query_sequence, size);
+      if (mask)
+        query_sequence_unmasked = (char*) xrealloc(query_sequence, size);
 	}
+    if (mask) {
+	  query_sequence_unmasked[query_length] = m;
+	  if (mask && islower(c)) {
+        if ((symtype == 1) || (symtype == 3))
+          m = map['X'];
+        else if (symtype != 5) // don't know what the wildcard character is for the sound alphabet (if existing at all)
+          m = map['N'];
+      }
+    }
 	query_sequence[query_length++] = m;
       }
     }
@@ -328,15 +344,21 @@ int query_read()
     fgets(query_line, LINE_MAX, query_fp);
   }
   query_sequence[query_length] = 0;
+  if (mask)
+    query_sequence_unmasked[query_length] = 0;
     
   if ((symtype == 0) || (symtype == 2) || (symtype == 4))
   {
+    if (mask)
+      query.nt[0].seq_unmasked = query_sequence_unmasked;
     query.nt[0].seq = query_sequence;
     query.nt[0].len = query_length;
 
     if (query.strands & 2)
     {
       //      printf("Reverse complement.\n");
+      if (mask)
+        query.nt[1].seq_unmasked = revcompl(query.nt[0].seq_unmasked, query.nt[0].len);
       query.nt[1].seq = revcompl(query.nt[0].seq, query.nt[0].len);
       query.nt[1].len = query.nt[0].len;
     }
@@ -351,6 +373,9 @@ int query_read()
 	  {
 	    translate(query.nt[0].seq, query.nt[0].len, s, f, 0,
 		      & query.aa[3*s+f].seq, & query.aa[3*s+f].len);
+        if (mask)
+          translate(query.nt[0].seq_unmasked, query.nt[0].len, s, f, 0,
+                & query.aa[3*s+f].seq_unmasked, & query.aa[3*s+f].len);
 	  }
 	}
       }
@@ -358,6 +383,8 @@ int query_read()
   }
   else
   {
+    if (mask)
+      query.aa[0].seq_unmasked = query_sequence_unmasked;
     query.aa[0].seq = query_sequence;
     query.aa[0].len = query_length;
   }

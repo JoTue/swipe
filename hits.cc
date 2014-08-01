@@ -161,24 +161,6 @@ long * hits_sort()
   return hits_sorted;
 }
 
-void hits_enter(struct db_thread_s * t, long seqno, long score, long qstrand, long qframe,
-                long dstrand, long dframe, long align_hint, long bestq)
-{
-  char * address;
-  long length;
-  char *subject_description;
-
-  if (score >= scorethreshold) {
-
-    pthread_mutex_lock(&hitsmutex);
-    db_mapheaders(t, seqno, seqno);
-    db_getheader(t, seqno, & address, & length);
-    db_getheadertitle(t, address, length, 1, &subject_description); // TODO: simplify this
-    fprintf(out, "%s\t%s\t%ld\n", query.description, subject_description, score);
-    pthread_mutex_unlock(&hitsmutex);
-  }
-}
-
 void hits_enter(long seqno, long score, long qstrand, long qframe,
 		long dstrand, long dframe, long align_hint, long bestq)
 {
@@ -1989,8 +1971,14 @@ void hits_show_score_only(struct db_thread_s * t)
 {
   char * address;
   long length;
+  long deflines;
+  char ** deflinetable;
+  long gi;
+  char * link;
+  char * title;
+  int linklen;
+		       
 
-  char *title;
   long identities;
   long positives;
   long gaps;
@@ -2000,11 +1988,15 @@ void hits_show_score_only(struct db_thread_s * t)
   for(long i=0; i<hits_count; i++)
   {
     struct hits_entry * h = hits_list + i;
+    gi = 0;
     identities = positives = gaps = aligned = indels = 0;
 
     db_mapheaders(t, h->seqno, h->seqno);
     db_getheader(t, h->seqno, & address, & length);
-    db_getheadertitle(t, address, length, 1, &title); // TODO: simplify this
+    
+    db_parse_header(t, address, length,1, & deflines, & deflinetable);
+    hits_defline_split(deflinetable[0], & gi, & link, & linklen, & title);
+    
     //print only query identifier, not the whole description line
     int subj_id_len = length;
     char* id_end = strchr(title, ' '); // should be strnchr(title, length, ' ');

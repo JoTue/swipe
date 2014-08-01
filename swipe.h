@@ -368,10 +368,6 @@ void db_getshowheader(struct db_thread_s * t, long seqno,
 		      long show_gis, long indent,
 		      long maxlen, long linelen, long maxdeflines);
 
-void db_getheadertitle(struct db_thread_s * t, char * address, long length,
-		     long show_gis,
-		     char ** title);
-
 void db_show_fasta(struct db_thread_s * t, long seqno,
 		   long strand, long frame, long split);
 
