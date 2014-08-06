@@ -713,7 +713,7 @@ void align_adjusted_init() {
   memset(adjusted_score_matrix_63, -1, 32*32*8);
 }
 
-// bin/Debug/swipe  -i ../swimd/test_data/db/uniprot_sprot15.fasta -d ../swimd/test_data/db/uniprot_sprot15.fasta -m 88
+// bin/Debug/swipe  -i ../swimd/test_data/db/uniprot_sprot15.fasta -d ../swimd/test_data/db/uniprot_sprot15.fasta -m 88 -b 1000 -v 1000 -M BLOSUM50 -G 13 -E 2 -s
 // bin/Debug/swipe -i test_c.fa -d test_mcw_masked.fa -m 88 -M BLOSUM50 -G 13 -E 2 -B 60 -s
 
 void align_adjusted() {

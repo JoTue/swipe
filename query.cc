@@ -383,10 +383,13 @@ int query_read()
   }
   else
   {
-    if (mask)
+    if (mask) {
       query.aa[0].seq_unmasked = query_sequence_unmasked;
+      Blast_ReadAaComposition(&query.composition_unmasked, BLASTAA_SIZE, (const Uint1*)query_sequence_unmasked, query_length);
+    }
     query.aa[0].seq = query_sequence;
     query.aa[0].len = query_length;
+    Blast_ReadAaComposition(&query.composition, BLASTAA_SIZE, (const Uint1*)query_sequence, query_length);
   }
 
   return 1;
