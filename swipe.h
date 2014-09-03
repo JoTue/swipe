@@ -290,8 +290,8 @@ long fullsw(char * dseq,
 	    char * qend,
 	    long * hearray,
 	    int64_t * score_matrix,
-	    BYTE gap_open_penalty,
-	    BYTE gap_extend_penalty);
+	    WORD gap_open_penalty,
+	    WORD gap_extend_penalty);
 
 void align(char * a_seq,
 	   char * b_seq,
@@ -421,6 +421,10 @@ void hits_enter_align_coord(long i,
 			    long align_d_end,
 			    long dlennt);
 void hits_enter_align_string(long hitno, char * align, long align_len);
+void hits_defline_split(char * defline,
+			long * gi,
+			char ** link, int * linklen,
+			char ** rest);
 
 long stats_getparams_nt(long matchscore,
 			long mismatchscore,
@@ -451,7 +455,7 @@ typedef long Int8;
 typedef double Nlm_FloatHi;
 
 #ifdef COMPO_ADJUSTMENT
-static const int scaling_factor = 10;
+static const int scaling_factor = 32;
 void compo_init(const char *matrixName, BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo);
 void compo_done(BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo);
 int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, int unmask, const Uint1 *data, int nData, long gapopen, long gapextend, int *matchStart, int *queryStart, int *matchEnd, int *queryEnd);

@@ -398,7 +398,7 @@ alignment_end* sw_sse2_word (const int8_t* ref,
 	__m128i vMaxScore = vZero; /* Trace the highest score of the whole SW matrix. */
 	__m128i vMaxMark = vZero; /* Trace the highest score till the previous column. */
 	__m128i vTemp;
-	int32_t edge, begin = 0, end = refLen, step = 1;
+	int32_t begin = 0, end = refLen, step = 1;
 
 	/* outer loop to process the reference sequence */
 	if (ref_dir == 1) {
@@ -506,25 +506,6 @@ end:
 	bests[0].score = max;
 	bests[0].ref = end_ref;
 	bests[0].read = end_read;
-
-	bests[1].score = 0;
-	bests[1].ref = 0;
-	bests[1].read = 0;
-
-	edge = (end_ref - maskLen) > 0 ? (end_ref - maskLen) : 0;
-	for (i = 0; i < edge; i ++) {
-		if (maxColumn[i] > bests[1].score) {
-			bests[1].score = maxColumn[i];
-			bests[1].ref = i;
-		}
-	}
-	edge = (end_ref + maskLen) > refLen ? refLen : (end_ref + maskLen);
-	for (i = edge; i < refLen; i ++) {
-		if (maxColumn[i] > bests[1].score) {
-			bests[1].score = maxColumn[i];
-			bests[1].ref = i;
-		}
-	}
 
 	free(maxColumn);
 	free(end_read_column);

@@ -688,6 +688,14 @@ void printSequence(const unsigned char* sequence, int len) {
   putchar('\n');
 }
 
+void print_matrix(int64_t* matrix) {
+    for (int a = 0; a < 32; a++) { // ms should be sbps->matrix->nrows
+        for (int b = 0; b < 32; b++)
+            fprintf(stderr, "%4ld ", matrix[(a<<5) + b]);
+        fprintf(stderr, "\n");
+    }
+}
+
 void align_adjusted_init() {
   if (mask) {
     readFastaSequences(databasename, dbSequences);
@@ -724,6 +732,8 @@ void align_adjusted_init() {
 
   adjusted_score_matrix_63 = (int64_t *) xmalloc(32*32*sizeof(int64_t));
   memset(adjusted_score_matrix_63, -1, 32*32*8);
+  //print_matrix(score_matrix_63);
+  
 }
 
 // -i ../swimd/test_data/db/uniprot_sprot15.fasta -d ../swimd/test_data/db/uniprot_sprot15.fasta -m 88 -b 1000 -v 1000 -e 10000 -M BLOSUM50 -G 13 -E 2 -s
@@ -749,19 +759,22 @@ void align_adjusted() {
   char *qseq = (mask ? query.aa[0].seq_unmasked : query.aa[0].seq);
   long gap_open = gapopen * scaling_factor;
   long gap_extend = gapextend * scaling_factor;
+  long gap_open_extend = gap_open + gap_extend;
   long gapopen_BlastDef = 11 * scaling_factor;
   long gapextend_BlastDef = 1 * scaling_factor;
 
-  int ms = 28;
-  int16_t* mata = (int16_t*)calloc(ms*ms, sizeof(int16_t));
+  int16_t* mata = (int16_t*)calloc(BLASTAA_SIZE*BLASTAA_SIZE, sizeof(int16_t));
 
   int32_t maskLen = query.aa[0].len / 2;
   
-  int err = 0;
+//  int err = 0;
   s_profile* p = NULL;
 //  s_align* result = NULL;
   s_align* result = (s_align*)calloc(1, sizeof(s_align));
-  
+
+  long hesize = query.aa[0].len*32;
+  BYTE* hearray = (BYTE*) xmalloc(hesize);
+
   for(long i = 0; i<hits; i++)
   {
     adjusted_score_blast = 0;
@@ -776,48 +789,94 @@ void align_adjusted() {
 	db_getsequence(dbt, seqno, dstrand, dframe, &subject_sequence, &subject_length, &ntlen, 0);
 	subject_length--;
 
-    // test scores
-
-//    db_print_seq_map(subject_sequence, subject_length-1, sym_ncbi_aa);
-//    db_print_seq_map(query.aa[0].seq, query.aa[0].len, sym_ncbi_aa);
-//    db_print_seq_map(query.aa[0].seq_unmasked, query.aa[0].len, sym_ncbi_aa);
     matchStart = queryStart = matchEnd = queryEnd = 0;
-    if ((err = compo_adjusted_matrix(NRrecords, sbps, scaledMatrixInfos, 0, (const Uint1*)subject_sequence, subject_length))) {
-        fprintf(out, "Compositional matrix adjustment failed with error: %d", err);
-    } else {
+    compo_adjusted_matrix(NRrecords, sbps, scaledMatrixInfos, 0, (const Uint1*)subject_sequence, subject_length);
         // convert adjusted score matrix to sswlib matrix
-        for (int a = 0; a < ms; a++) // ms should be sbps->matrix->nrows
-          for (int b = 0; b < ms; b++)
-            if (!a)
-              mata[a * ms + b] = -1;
-            else
-              if (!b)
-                mata[a * ms + b] = -1;
-              else
-//                mata[a * ms + b] = score_matrix_63[(a<<5) + b];
-                mata[a * ms + b] = sbps->matrix->data[a][b];
-        p = ssw_init_word((const int8_t*)query.aa[0].seq, query.aa[0].len, mata, ms);
-//        result = ssw_align(p, (const int8_t*)subject_sequence, subject_length, (gapopen + gapextend) * scaling_factor, gap_extend, 0, 0, 0, maskLen);
-		alignment_end* bests = sw_sse2_word((const int8_t*)subject_sequence, 0, subject_length, p->readLen, gap_open + gap_extend, gap_extend, p->profile_word, -1, maskLen);
+        for (int a = 0; a < BLASTAA_SIZE; a++)
+          for (int b = 0; b < BLASTAA_SIZE; b++) {
+                mata[a * BLASTAA_SIZE + b] = sbps->matrix->data[b][a]; // because of asymmetric matrix, [b][a] is correct for sswlib and fullsw
+           }
+        p = ssw_init_word((const int8_t*)query.aa[0].seq, query.aa[0].len, mata, BLASTAA_SIZE);
+		alignment_end* bests = sw_sse2_word((const int8_t*)subject_sequence, 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, -1, maskLen);
         result->score1 = bests[0].score;
         result->ref_end1 = bests[0].ref;
         result->read_end1 = bests[0].read;
         free(bests);
-    }
-    compo_align(&adjusted_score, NRrecord, sbp, scaledMatrixInfo, 0, (const Uint1*)subject_sequence, subject_length, gap_open, gap_extend, NULL, NULL, (int *)&matchEnd, (int *)&queryEnd);
-    if (adjusted_score != result->score1) {
-        fprintf(stderr, "sswlib returned different score than compo: %d vs %ld\n", result->score1, adjusted_score);
-        for (int a = 0; a < ms; a++) { // ms should be sbps->matrix->nrows
-          for (int b = 0; b < ms; b++)
-            fprintf(stderr, "%d ", mata[a * ms + b]);
-          fprintf(stderr, "\n");
-          for (int b = 0; b < ms; b++)
-            fprintf(stderr, "%d ", sbps->matrix->data[a][b]);
-          fprintf(stderr, "\n\n");
+        if (result->score1 == 32767) { // overflow
+          for (unsigned int a = 0; a < BLASTAA_SIZE; a++) {
+            for (unsigned int b = 0; b < BLASTAA_SIZE; b++)
+              adjusted_score_matrix_63[(a<<5) + b] = sbps->matrix->data[b][a];
+          }
+	      result->score1 = fullsw(subject_sequence, subject_sequence + subject_length,
+			      query.aa[0].seq, query.aa[0].seq + query.aa[0].len,
+			      (long*) hearray,
+			      adjusted_score_matrix_63,
+			      gap_open_extend, gap_extend);
         }
-    } else
-        fprintf(stderr, "sswlib returned same score as compo: %d vs %ld\n", result->score1, adjusted_score);
-    if (adjusted_score >= minscore2) {
+        if (result->score1 < minscore2 * scaling_factor && score * scaling_factor > 32767)
+            adjusted_score = score * scaling_factor;
+        else
+            adjusted_score = result->score1;
+/*    compo_align(&adjusted_score, NRrecord, sbp, scaledMatrixInfo, 0, (const Uint1*)subject_sequence, subject_length, gap_open, gap_extend, NULL, NULL, (int *)&matchEnd, (int *)&queryEnd);
+    if (adjusted_score != result->score1) {
+      for (int a = 0; a < BLASTAA_SIZE; a++) {
+        for (int b = 0; b < BLASTAA_SIZE; b++)
+          adjusted_score_matrix_63[(a<<5) + b] = sbps->matrix->data[a][b];
+      }
+      if (hesize < subject_length * 32) {
+        hesize = subject_length*32;
+        hearray = (BYTE*)realloc(hearray, hesize);
+      }
+	  long score = fullsw(
+			      qseq, qseq + query.aa[0].len,
+                  subject_sequence, subject_sequence + subject_length,
+			      (long*) hearray,
+			      adjusted_score_matrix_63,
+			      gap_open_extend,
+			      gap_extend);
+*/
+        /*matchStart = queryStart = 0;
+        matchEnd = queryEnd = score_align = 0;
+        align(qseq,
+          subject_sequence,
+          query.aa[0].len,
+          subject_length,
+          adjusted_score_matrix_63,
+          gap_open,
+          gap_extend,
+          & queryStart,
+          & matchStart,
+          & queryEnd,
+          & matchEnd,
+          & alignment,
+          & score_align);*/
+/*  char * address;
+  long length;
+  long deflines;
+  char ** deflinetable;
+  long gi;
+  char * link;
+  char * title;
+  int linklen;
+    db_mapheaders(dbt, seqno, seqno);
+    db_getheader(dbt, seqno, & address, & length);
+    
+    db_parse_header(dbt, address, length,1, & deflines, & deflinetable);
+    hits_defline_split(deflinetable[0], & gi, & link, & linklen, & title);
+    
+    //print only query identifier, not the whole description line
+    int subj_id_len = length;
+    char* id_end = strchr(title, ' '); // should be strnchr(title, length, ' ');
+    if (id_end)
+        subj_id_len = id_end - title;
+    int qry_id_len = query.dlen;
+    id_end = strchr(query.description, ' '); // should be strnchr(title, length, ' ');
+    if (id_end)
+        qry_id_len = id_end - query.description;
+
+        fprintf(stderr, "sswlib returned different score than compo: %.*s\t%.*s\t%d vs %ld vs %ld\n", qry_id_len, query.description, subj_id_len, title, result->score1, adjusted_score, score);
+    }*/
+    if (adjusted_score >= minscore2 * scaling_factor) {
         if (mask) {
             subject_sequence = (char*)(*dbSequences)[seqno].data();
 /*            if ((unsigned long)subject_length != (*dbSequences)[seqno].size()) {
@@ -825,17 +884,28 @@ void align_adjusted() {
                 subject_length = (*dbSequences)[seqno].size();
             }
 */        }
-        compo_align(&adjusted_score_blast, NRrecordBL62, sbpBL62, scaledMatrixInfoBL62, mask, (const Uint1*)subject_sequence, subject_length, gapopen_BlastDef, gapextend_BlastDef, (int *)&matchStart, (int *)&queryStart, (int *)&matchEnd, (int *)&queryEnd);
+//        compo_align(&adjusted_score_blast, NRrecordBL62, sbpBL62, scaledMatrixInfoBL62, mask, (const Uint1*)subject_sequence, subject_length, gapopen_BlastDef, gapextend_BlastDef, (int *)&matchStart, (int *)&queryStart, (int *)&matchEnd, (int *)&queryEnd);
+        compo_adjusted_matrix(NRrecordBL62, sbpBL62, scaledMatrixInfoBL62, mask, (const Uint1*)subject_sequence, subject_length);
 //        hits_enter_align_hint(i, queryEnd, matchEnd);
         // convert adjusted score matrix to swipe matix
-        for (int a = 0; a < BLASTAA_SIZE; a++) {
-            for (int b = 0; b < BLASTAA_SIZE; b++)
+        for (int a = 0; a < BLASTAA_SIZE; a++)
+          for (int b = 0; b < BLASTAA_SIZE; b++) {
+                mata[a * BLASTAA_SIZE + b] = sbpBL62->matrix->data[b][a]; // because of asymmetric matrix, [b][a] is correct for sswlib and fullsw
                 adjusted_score_matrix_63[(a<<5) + b] = sbpBL62->matrix->data[a][b];
-        }
+           }
+        p = ssw_init_word((const int8_t*)qseq, query.aa[0].len, mata, BLASTAA_SIZE);
+		alignment_end* bests = sw_sse2_word((const int8_t*)subject_sequence, 0, subject_length, p->readLen, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, p->profile_word, -1, maskLen);
+        adjusted_score_blast = bests[0].score;
+        matchEnd = bests[0].ref;
+        queryEnd = bests[0].read;
+        free(bests);
+        
         hits_enter_seq(i, subject_sequence, subject_length);
         matchStart = queryStart = 0;
-//        matchEnd = queryEnd = score_align = 0;
-        score_align = adjusted_score_blast;
+        if (adjusted_score_blast == 32767)
+            matchEnd = queryEnd = score_align = 0;
+        else
+          score_align = adjusted_score_blast;
         align(qseq,
           subject_sequence,
           query.aa[0].len,
@@ -859,7 +929,7 @@ void align_adjusted() {
     align_destroy(result);
   init_destroy(p);
   free(mata);
-
+  free(hearray);
   db_thread_destruct(dbt);
 }
 
