@@ -76,20 +76,12 @@ void compo_done(BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo) {
     BlastScoreBlkFree(*sbp);
 }
 
-int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, const Uint1 *data, int nData, long gapopen, long gapextend,
-                int *matchStart, int *queryStart, int *matchEnd, int *queryEnd) {
-
-    int score = -1;
-    int err = 0;
-    *score_out = -1;
+int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, int unmask, const Uint1 *data, int nData) {
 
     /* adjust_search_failed is true only if Blast_AdjustScores
      * is called and returns a nonzero value */
     int adjust_search_failed = FALSE;
 
-
-	Blast_ForbiddenRanges forbidden = {0,};
-	forbidden.isEmpty = TRUE;
 
     double pvalueForThisPair = (-1); /* p-value for this match for composition; -1 == no adjustment*/
     double LambdaRatio; /*lambda ratio*/
@@ -105,7 +97,47 @@ int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastSco
 
     adjust_search_failed =
       Blast_AdjustScores(sbp->matrix->data,
-                         (mask ? &query.composition_unmasked : &query.composition), query.aa[0].len,
+                         (unmask ? &query.composition_unmasked : &query.composition), query.aa[0].len,
+                         &subject_composition, nData,
+                         scaledMatrixInfo, eCompositionMatrixAdjust,
+                         kReMatrixAdjustmentPseudocounts, NRrecord,
+                         &matrix_adjust_rule, &s_CalcLambda,
+                         &pvalueForThisPair,
+                         compositionTestIndex,
+                         &LambdaRatio);
+
+    return adjust_search_failed;
+}
+
+int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, int unmask, const Uint1 *data, int nData, long gapopen, long gapextend,
+                int *matchStart, int *queryStart, int *matchEnd, int *queryEnd) {
+
+    int score = -1;
+    int err = 0;
+    *score_out = -1;
+
+	Blast_ForbiddenRanges forbidden = {0,};
+	forbidden.isEmpty = TRUE;
+
+    /* adjust_search_failed is true only if Blast_AdjustScores
+     * is called and returns a nonzero value */
+    int adjust_search_failed = FALSE;
+
+
+    double pvalueForThisPair = (-1); // p-value for this match for composition; -1 == no adjustment
+    double LambdaRatio; // lambda ratio
+    // which test function do we use to see if a composition-adjusted p-value is desired; value needs to be passed in eventually
+    int compositionTestIndex = 0;
+    // which mode of composition adjustment is actually used?
+    EMatrixAdjustRule matrix_adjust_rule = eDontAdjustMatrix;
+
+    Blast_AminoAcidComposition subject_composition;
+    Blast_ReadAaComposition(&subject_composition, BLASTAA_SIZE, data, nData);
+//    Blast_ReadAaComposition(&subject_composition, BLASTAA_SIZE, &data[res.matchSeqStart], res.matchSeqEnd-res.matchSeqStart);
+
+    adjust_search_failed =
+      Blast_AdjustScores(sbp->matrix->data,
+                         (unmask ? &query.composition_unmasked : &query.composition), query.aa[0].len,
                          &subject_composition, nData,
                          scaledMatrixInfo, eCompositionMatrixAdjust,
                          kReMatrixAdjustmentPseudocounts, NRrecord,
@@ -117,7 +149,7 @@ int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastSco
     if (adjust_search_failed < 0)
         return adjust_search_failed;  // Score adjustment error
 
-    const char *seq = (mask ? query.aa[0].seq_unmasked : query.aa[0].seq);
+    const char *seq = (unmask ? query.aa[0].seq_unmasked : query.aa[0].seq);
     err = Blast_SmithWatermanScoreOnly( &score, matchEnd, queryEnd,
                                         data, nData, (const Uint1*)seq, query.aa[0].len, sbp->matrix->data, gapopen, gapextend, false, &forbidden );
     if (err)

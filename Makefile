@@ -54,7 +54,7 @@ clean :
 OBJS = database.o asnparse.o align.o matrices.o \
 	stats.o hits.o query.o \
 	search63.o search16.o search16s.o search7.o search7_ssse3.o \
-        fasta.o adjusted.o
+        fasta.o adjusted.o ssw.c
 
 DEPS = swipe.h Makefile
 

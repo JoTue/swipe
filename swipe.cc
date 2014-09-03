@@ -24,6 +24,7 @@
 */
 
 #include "swipe.h"
+#include "ssw.h"
 
 /* ARGUMENTS AND THEIR DEFAULTS */
 
@@ -667,6 +668,10 @@ BlastScoreBlk *sbp;
 Blast_MatrixInfo *scaledMatrixInfo;
 Blast_CompositionWorkspace *NRrecord;
 
+BlastScoreBlk *sbps;
+Blast_MatrixInfo *scaledMatrixInfos;
+Blast_CompositionWorkspace *NRrecords;
+
 BlastScoreBlk *sbpBL62;
 Blast_MatrixInfo *scaledMatrixInfoBL62;
 Blast_CompositionWorkspace *NRrecordBL62;
@@ -700,6 +705,14 @@ void align_adjusted_init() {
   }
   compo_init(matrixname, &sbp, &scaledMatrixInfo);
 
+  NRrecords = Blast_CompositionWorkspaceNew();
+  status_code = Blast_CompositionWorkspaceInit(NRrecords, matrixname);
+  if (status_code != 0) {
+    fprintf(stderr, "Blast_CompositionWorkspaceInit error: %d\n", status_code);
+    exit(1);
+  }
+  compo_init(matrixname, &sbps, &scaledMatrixInfos);
+
   // for BLOSUM62
   NRrecordBL62 = Blast_CompositionWorkspaceNew();
   status_code = Blast_CompositionWorkspaceInit(NRrecordBL62, "BLOSUM62");
@@ -713,8 +726,8 @@ void align_adjusted_init() {
   memset(adjusted_score_matrix_63, -1, 32*32*8);
 }
 
-// bin/Debug/swipe  -i ../swimd/test_data/db/uniprot_sprot15.fasta -d ../swimd/test_data/db/uniprot_sprot15.fasta -m 88 -b 1000 -v 1000 -M BLOSUM50 -G 13 -E 2 -s
-// bin/Debug/swipe -i test_c.fa -d test_mcw_masked.fa -m 88 -M BLOSUM50 -G 13 -E 2 -B 60 -s
+// -i ../swimd/test_data/db/uniprot_sprot15.fasta -d ../swimd/test_data/db/uniprot_sprot15.fasta -m 88 -b 1000 -v 1000 -e 10000 -M BLOSUM50 -G 13 -E 2 -s
+// -i test/test_c.fa -d test/test_mcw_masked.fa -e 10000000 -m 88 -b 10 -v 1 -M BLOSUM50 -G 13 -E 2 -B 38 -s
 
 void align_adjusted() {
   long hits = hits_getcount();
@@ -739,6 +752,16 @@ void align_adjusted() {
   long gapopen_BlastDef = 11 * scaling_factor;
   long gapextend_BlastDef = 1 * scaling_factor;
 
+  int ms = 28;
+  int16_t* mata = (int16_t*)calloc(ms*ms, sizeof(int16_t));
+
+  int32_t maskLen = query.aa[0].len / 2;
+  
+  int err = 0;
+  s_profile* p = NULL;
+//  s_align* result = NULL;
+  s_align* result = (s_align*)calloc(1, sizeof(s_align));
+  
   for(long i = 0; i<hits; i++)
   {
     adjusted_score_blast = 0;
@@ -752,11 +775,48 @@ void align_adjusted() {
     db_mapsequences(dbt, seqno, seqno);
 	db_getsequence(dbt, seqno, dstrand, dframe, &subject_sequence, &subject_length, &ntlen, 0);
 	subject_length--;
+
+    // test scores
+
 //    db_print_seq_map(subject_sequence, subject_length-1, sym_ncbi_aa);
 //    db_print_seq_map(query.aa[0].seq, query.aa[0].len, sym_ncbi_aa);
 //    db_print_seq_map(query.aa[0].seq_unmasked, query.aa[0].len, sym_ncbi_aa);
     matchStart = queryStart = matchEnd = queryEnd = 0;
-    compo_align(&adjusted_score, NRrecord, sbp, scaledMatrixInfo, (const Uint1*)subject_sequence, subject_length, gap_open, gap_extend, NULL, NULL, (int *)&matchEnd, (int *)&queryEnd);
+    if ((err = compo_adjusted_matrix(NRrecords, sbps, scaledMatrixInfos, 0, (const Uint1*)subject_sequence, subject_length))) {
+        fprintf(out, "Compositional matrix adjustment failed with error: %d", err);
+    } else {
+        // convert adjusted score matrix to sswlib matrix
+        for (int a = 0; a < ms; a++) // ms should be sbps->matrix->nrows
+          for (int b = 0; b < ms; b++)
+            if (!a)
+              mata[a * ms + b] = -1;
+            else
+              if (!b)
+                mata[a * ms + b] = -1;
+              else
+//                mata[a * ms + b] = score_matrix_63[(a<<5) + b];
+                mata[a * ms + b] = sbps->matrix->data[a][b];
+        p = ssw_init_word((const int8_t*)query.aa[0].seq, query.aa[0].len, mata, ms);
+//        result = ssw_align(p, (const int8_t*)subject_sequence, subject_length, (gapopen + gapextend) * scaling_factor, gap_extend, 0, 0, 0, maskLen);
+		alignment_end* bests = sw_sse2_word((const int8_t*)subject_sequence, 0, subject_length, p->readLen, gap_open + gap_extend, gap_extend, p->profile_word, -1, maskLen);
+        result->score1 = bests[0].score;
+        result->ref_end1 = bests[0].ref;
+        result->read_end1 = bests[0].read;
+        free(bests);
+    }
+    compo_align(&adjusted_score, NRrecord, sbp, scaledMatrixInfo, 0, (const Uint1*)subject_sequence, subject_length, gap_open, gap_extend, NULL, NULL, (int *)&matchEnd, (int *)&queryEnd);
+    if (adjusted_score != result->score1) {
+        fprintf(stderr, "sswlib returned different score than compo: %d vs %ld\n", result->score1, adjusted_score);
+        for (int a = 0; a < ms; a++) { // ms should be sbps->matrix->nrows
+          for (int b = 0; b < ms; b++)
+            fprintf(stderr, "%d ", mata[a * ms + b]);
+          fprintf(stderr, "\n");
+          for (int b = 0; b < ms; b++)
+            fprintf(stderr, "%d ", sbps->matrix->data[a][b]);
+          fprintf(stderr, "\n\n");
+        }
+    } else
+        fprintf(stderr, "sswlib returned same score as compo: %d vs %ld\n", result->score1, adjusted_score);
     if (adjusted_score >= minscore2) {
         if (mask) {
             subject_sequence = (char*)(*dbSequences)[seqno].data();
@@ -765,7 +825,7 @@ void align_adjusted() {
                 subject_length = (*dbSequences)[seqno].size();
             }
 */        }
-        compo_align(&adjusted_score_blast, NRrecordBL62, sbpBL62, scaledMatrixInfoBL62, (const Uint1*)subject_sequence, subject_length, gapopen_BlastDef, gapextend_BlastDef, (int *)&matchStart, (int *)&queryStart, (int *)&matchEnd, (int *)&queryEnd);
+        compo_align(&adjusted_score_blast, NRrecordBL62, sbpBL62, scaledMatrixInfoBL62, mask, (const Uint1*)subject_sequence, subject_length, gapopen_BlastDef, gapextend_BlastDef, (int *)&matchStart, (int *)&queryStart, (int *)&matchEnd, (int *)&queryEnd);
 //        hits_enter_align_hint(i, queryEnd, matchEnd);
         // convert adjusted score matrix to swipe matix
         for (int a = 0; a < BLASTAA_SIZE; a++) {
@@ -794,6 +854,11 @@ void align_adjusted() {
     hits_enter_align_coord(i, queryStart, queryEnd, matchStart, matchEnd, 0);
     hits_enter_adjusted_score(i, adjusted_score, adjusted_score_blast);
   }
+  
+  if (result)
+    align_destroy(result);
+  init_destroy(p);
+  free(mata);
 
   db_thread_destruct(dbt);
 }
