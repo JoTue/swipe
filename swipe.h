@@ -454,7 +454,7 @@ typedef double Nlm_FloatHi;
 static const int scaling_factor = 32;
 void compo_init(const char *matrixName, BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo);
 void compo_done(BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo);
-int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, const Uint1 *data, int nData, long gapopen, long gapextend, int *matchStart, int *queryStart, int *matchEnd, int *queryEnd);
+int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, int unmask, const Uint1 *data, int nData, long gapopen, long gapextend, int *matchStart, int *queryStart, int *matchEnd, int *queryEnd);
 using namespace std;
 bool readFastaSequences(const char* dbFilePath, vector< vector<unsigned char> >* seqs);
 void hits_set_align_string(long hitno, char * align, long score_align);

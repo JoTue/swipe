@@ -756,7 +756,7 @@ void align_adjusted() {
 //    db_print_seq_map(query.aa[0].seq, query.aa[0].len, sym_ncbi_aa);
 //    db_print_seq_map(query.aa[0].seq_unmasked, query.aa[0].len, sym_ncbi_aa);
     matchStart = queryStart = matchEnd = queryEnd = 0;
-    compo_align(&adjusted_score, NRrecord, sbp, scaledMatrixInfo, (const Uint1*)subject_sequence, subject_length, gap_open, gap_extend, NULL, NULL, (int *)&matchEnd, (int *)&queryEnd);
+    compo_align(&adjusted_score, NRrecord, sbp, scaledMatrixInfo, 0, (const Uint1*)subject_sequence, subject_length, gap_open, gap_extend, NULL, NULL, (int *)&matchEnd, (int *)&queryEnd);
     if (adjusted_score >= minscore2) {
         if (mask) {
             subject_sequence = (char*)(*dbSequences)[seqno].data();
@@ -765,11 +765,11 @@ void align_adjusted() {
                 subject_length = (*dbSequences)[seqno].size();
             }
 */        }
-        compo_align(&adjusted_score_blast, NRrecordBL62, sbpBL62, scaledMatrixInfoBL62, (const Uint1*)subject_sequence, subject_length, gapopen_BlastDef, gapextend_BlastDef, (int *)&matchStart, (int *)&queryStart, (int *)&matchEnd, (int *)&queryEnd);
+        compo_align(&adjusted_score_blast, NRrecordBL62, sbpBL62, scaledMatrixInfoBL62, mask, (const Uint1*)subject_sequence, subject_length, gapopen_BlastDef, gapextend_BlastDef, (int *)&matchStart, (int *)&queryStart, (int *)&matchEnd, (int *)&queryEnd);
 //        hits_enter_align_hint(i, queryEnd, matchEnd);
         // convert adjusted score matrix to swipe matix
-        for (int a = 0; a < BLASTAA_SIZE; a++) {
-            for (int b = 0; b < BLASTAA_SIZE; b++)
+        for (unsigned int a = 0; a < sbpBL62->matrix->nrows; a++) {
+            for (unsigned int b = 0; b < sbpBL62->matrix->ncols; b++)
                 adjusted_score_matrix_63[(a<<5) + b] = sbpBL62->matrix->data[a][b];
         }
         hits_enter_seq(i, subject_sequence, subject_length);

@@ -76,7 +76,7 @@ void compo_done(BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo) {
     BlastScoreBlkFree(*sbp);
 }
 
-int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, const Uint1 *data, int nData, long gapopen, long gapextend,
+int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, int unmask, const Uint1 *data, int nData, long gapopen, long gapextend,
                 int *matchStart, int *queryStart, int *matchEnd, int *queryEnd) {
 
     int score = -1;
@@ -105,7 +105,7 @@ int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastSco
 
     adjust_search_failed =
       Blast_AdjustScores(sbp->matrix->data,
-                         (mask ? &query.composition_unmasked : &query.composition), query.aa[0].len,
+                         (unmask ? &query.composition_unmasked : &query.composition), query.aa[0].len,
                          &subject_composition, nData,
                          scaledMatrixInfo, eCompositionMatrixAdjust,
                          kReMatrixAdjustmentPseudocounts, NRrecord,
@@ -117,7 +117,7 @@ int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastSco
     if (adjust_search_failed < 0)
         return adjust_search_failed;  // Score adjustment error
 
-    const char *seq = (mask ? query.aa[0].seq_unmasked : query.aa[0].seq);
+    const char *seq = (unmask ? query.aa[0].seq_unmasked : query.aa[0].seq);
     err = Blast_SmithWatermanScoreOnly( &score, matchEnd, queryEnd,
                                         data, nData, (const Uint1*)seq, query.aa[0].len, sbp->matrix->data, gapopen, gapextend, false, &forbidden );
     if (err)
