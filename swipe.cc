@@ -757,7 +757,7 @@ void align_adjusted() {
 //    db_print_seq_map(query.aa[0].seq_unmasked, query.aa[0].len, sym_ncbi_aa);
     matchStart = queryStart = matchEnd = queryEnd = 0;
     compo_align(&adjusted_score, NRrecord, sbp, scaledMatrixInfo, 0, (const Uint1*)subject_sequence, subject_length, gap_open, gap_extend, NULL, NULL, (int *)&matchEnd, (int *)&queryEnd);
-    if (adjusted_score >= minscore2) {
+    if (adjusted_score >= minscore2 * scaling_factor) {
         if (mask) {
             subject_sequence = (char*)(*dbSequences)[seqno].data();
 /*            if ((unsigned long)subject_length != (*dbSequences)[seqno].size()) {

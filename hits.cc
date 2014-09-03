@@ -2016,6 +2016,10 @@ void hits_show_score_only(struct db_thread_s * t)
   for(long i=0; i<hits_count; i++)
   {
     struct hits_entry * h = hits_list + i;
+    
+    if (!h->alignment)
+        continue;
+        
     gi = 0;
     identities = positives = gaps = aligned = indels = 0;
 
