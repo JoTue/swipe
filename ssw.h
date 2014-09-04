@@ -144,6 +144,24 @@ alignment_end* sw_sse2_word (const int8_t* ref,
 							 const __m128i* vProfile,
 							 uint16_t terminate,
 							 int32_t maskLen);
+alignment_end* sw_sse2_byte (const int8_t* ref,
+							 int8_t ref_dir,	// 0: forward ref; 1: reverse ref
+							 int32_t refLen,
+							 int32_t readLen,
+							 const uint8_t weight_gapO, /* will be used as - */
+							 const uint8_t weight_gapE, /* will be used as - */
+							 const __m128i* vProfile,
+							 uint8_t terminate,	/* the best alignment score: used to terminate
+												   the matrix calculation when locating the
+												   alignment beginning point. If this score
+												   is set to 0, it will not be used */
+	 						 uint8_t bias,  /* Shift 0 point to a positive value. */
+							 int32_t maskLen);
+
+__m128i* qP_word16 (const int8_t* read_num,
+				  const int16_t* mat,
+				  const int32_t readLen,
+				  const int32_t n);
 
 /*!	@function	Release the memory allocated by function ssw_align.
 	@param	a	pointer to the alignment result structure

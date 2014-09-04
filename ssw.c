@@ -104,7 +104,7 @@ static __m128i* qP_byte (const int8_t* read_num,
    wight_match > 0, all other weights < 0.
    The returned positions are 0-based.
  */
-static alignment_end* sw_sse2_byte (const int8_t* ref,
+alignment_end* sw_sse2_byte (const int8_t* ref,
 							 int8_t ref_dir,	// 0: forward ref; 1: reverse ref
 							 int32_t refLen,
 							 int32_t readLen,
@@ -277,7 +277,7 @@ static alignment_end* sw_sse2_byte (const int8_t* ref,
 		/* Record the max score of current column. */
 		max16(maxColumn[i], vMaxColumn);
 //		fprintf(stderr, "maxColumn[%d]: %d\n", i, maxColumn[i]);
-		if (maxColumn[i] == terminate) break;
+		if (maxColumn[i] >= terminate) break;
 	}
 
 	/* Trace the alignment ending position on read. */
@@ -482,7 +482,7 @@ end:
 
 		/* Record the max score of current column. */
 		max8(maxColumn[i], vMaxColumn);
-		if (maxColumn[i] == terminate) break;
+		if (maxColumn[i] >= terminate) break;
 	}
 
 	/* Trace the alignment ending position on read. */
@@ -736,7 +736,7 @@ s_profile* ssw_init (const int8_t* read, const int32_t readLen, const int8_t* ma
 	return p;
 }
 
-static __m128i* qP_word16 (const int8_t* read_num,
+__m128i* qP_word16 (const int8_t* read_num,
 				  const int16_t* mat,
 				  const int32_t readLen,
 				  const int32_t n) {

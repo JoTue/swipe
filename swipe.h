@@ -455,8 +455,9 @@ typedef long Int8;
 typedef double Nlm_FloatHi;
 
 #ifdef COMPO_ADJUSTMENT
-static const int scaling_factor = 32;
-void compo_init(const char *matrixName, BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo);
+static const int scaling_factor = 3;
+static const int scaling_factor_BL62 = 32;
+void compo_init(const char *matrixName, BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo, int scaling_factor);
 void compo_done(BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo);
 int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, int unmask, const Uint1 *data, int nData, long gapopen, long gapextend, int *matchStart, int *queryStart, int *matchEnd, int *queryEnd);
 int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, int unmask, const Uint1 *data, int nData);

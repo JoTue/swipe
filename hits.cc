@@ -2054,8 +2054,8 @@ void hits_show_score_only(struct db_thread_s * t)
       fprintf(out, "\t%.2g\t%.1f\t%.1f\t%.1f", expect, bits, bits_adjusted, bits_blast);
     }
 */
-    // qseqid sseqid score pident ppos qstart qend sstart send length nident mismatch gapopen gaps
-    fprintf(out, "\t%ld\t%.2f\t%.2f\t%ld\t%ld\t%ld\t%ld", score, (float)h->score_adjusted/scaling_factor, (float)h->score_adjusted_blast/scaling_factor, h->align_q_start+1, h->align_q_end+1, h->align_d_start+1, h->align_d_end+1);
+    // qseqid sseqid masked_score, mskAdjScrBL50, umskAdjScrBL62 pident ppos qstart qend sstart send length nident mismatch gapopen gaps
+    fprintf(out, "\t%ld\t%.2f\t%.2f\t%ld\t%ld\t%ld\t%ld", score, (float)h->score_adjusted/scaling_factor, (float)h->score_adjusted_blast/scaling_factor_BL62, h->align_q_start+1, h->align_q_end+1, h->align_d_start+1, h->align_d_end+1);
     if (h->alignment)
         fprintf(out, "\t%.2f\t%.2f\t%ld\t%ld\t%ld\t%ld\t%ld\n",
             100.0 * identities / aligned,
@@ -2069,7 +2069,7 @@ void hits_show_score_only(struct db_thread_s * t)
     else
         fprintf(out, "\n");
     /*if (h->score_align != h->score_adjusted_blast)
-        fprintf(out, "Raw scores differ: %ld vs %ld (%.2f vs %.2f)\n", h->score_align, h->score_adjusted_blast, (float)h->score_align/scaling_factor, (float)h->score_adjusted_blast/scaling_factor);
+        fprintf(out, "Raw scores differ: %ld vs %ld (%.2f vs %.2f)\n", h->score_align, h->score_adjusted_blast, (float)h->score_align/scaling_factor, (float)h->score_adjusted_blast/scaling_factor_BL62);
         */
   }
 }

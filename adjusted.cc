@@ -42,7 +42,7 @@ static double s_CalcLambda(double probs[], int min_score, int max_score, double 
     return Blast_KarlinLambdaNR(&freq, lambda0);
 }
 
-void compo_init(const char *matrixName, BlastScoreBlk **bsb, Blast_MatrixInfo **matrixInfo) {
+void compo_init(const char *matrixName, BlastScoreBlk **bsb, Blast_MatrixInfo **matrixInfo, int scaling_factor) {
 //    const char *matrixName = "BLOSUM50";
 
     BlastScoreBlk *sbp = BlastScoreBlkNew(BLASTAA_SEQ_CODE, 1);
