@@ -894,7 +894,8 @@ void align_adjusted() {
   
   if (result)
     align_destroy(result);
-  init_destroy(p);
+  if (p)
+    init_destroy(p);
   free(mata);
   free(mat8);
   free(hearray);
