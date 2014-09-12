@@ -164,14 +164,23 @@ long * hits_sort()
 void hits_enter(long seqno, long score, long qstrand, long qframe,
 		long dstrand, long dframe, long align_hint, long bestq)
 {
-  // show_progress();
-
-  //  fprintf(out, "Entering score %u from sequence no %u.\n", score, seqno);
-
-  // find correct place
-
   pthread_mutex_lock(&hitsmutex);
 
+  if (hits_count < keephits) {
+    hits_list[hits_count].seqno = seqno;
+    hits_list[hits_count].qstrand = qstrand;
+    hits_list[hits_count].qframe = qframe;
+    hits_list[hits_count].dstrand = dstrand;
+    hits_list[hits_count].dframe = dframe;
+    hits_list[hits_count].score = score;
+    hits_list[hits_count].align_hint = align_hint;
+    hits_list[hits_count].bestq = bestq;
+    hits_count++;
+    totalhits++;
+  }
+  pthread_mutex_unlock(&hitsmutex);
+
+/*
   if (score > upperscorethreshold)
     obvious++;
 
@@ -220,6 +229,7 @@ void hits_enter(long seqno, long score, long qstrand, long qframe,
     scorethreshold = hits_list[keephits-1].score;
 
   pthread_mutex_unlock(&hitsmutex);
+  */
 }
 
 long hits_getcount()

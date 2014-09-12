@@ -133,6 +133,8 @@ typedef struct {
 	uint16_t score;
 	int32_t ref;	 //0-based position
 	int32_t read;    //alignment ending position on read, 0-based
+	int32_t max_segLen;
+	__m128i *pvHStore, *pvHLoad, *pvE, *pvHmax;
 } alignment_end;
 
 alignment_end* sw_sse2_word (const int8_t* ref,
@@ -143,7 +145,8 @@ alignment_end* sw_sse2_word (const int8_t* ref,
 							 const int16_t weight_gapE, /* will be used as - */
 							 const __m128i* vProfile,
 							 uint16_t terminate,
-							 int32_t maskLen);
+							 int32_t maskLen,
+							 alignment_end* ae);
 alignment_end* sw_sse2_byte (const int8_t* ref,
 							 int8_t ref_dir,	// 0: forward ref; 1: reverse ref
 							 int32_t refLen,
@@ -156,7 +159,10 @@ alignment_end* sw_sse2_byte (const int8_t* ref,
 												   alignment beginning point. If this score
 												   is set to 0, it will not be used */
 	 						 uint8_t bias,  /* Shift 0 point to a positive value. */
-							 int32_t maskLen);
+							 int32_t maskLen,
+							 alignment_end* ae);
+
+void align_end_destroy (alignment_end* a);
 
 __m128i* qP_word16 (const int8_t* read_num,
 				  const int16_t* mat,

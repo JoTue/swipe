@@ -683,6 +683,11 @@ int64_t * adjusted_score_matrix_63;
 int matrix_min = 0;
 int matrix_max = 0;
 
+int16_t* mata;
+int8_t* mat8;
+s_align* result = NULL;
+alignment_end ae = {0};
+
 void printSequence(const unsigned char* sequence, int len) {
   for (int i = 0; i < len; i++)
     putchar(NCBISTDAA_TO_AMINOACID[sequence[i]]);
@@ -729,6 +734,18 @@ void align_adjusted_init() {
   //print_matrix(score_matrix_63);
   
   //fprintf(out, "SCORELIMIT_7: %ld\n", SCORELIMIT_7); // 113 for BL50 and 117 for BL62
+  mata = (int16_t*)calloc(BLASTAA_SIZE*BLASTAA_SIZE, sizeof(int16_t));
+  mat8 = (int8_t*)calloc(BLASTAA_SIZE*BLASTAA_SIZE, sizeof(int8_t));
+
+//  int8_t* read_reverse = 0;
+//  long reverse_len = 0;
+  
+//  int err = 0;
+//  s_align* result = NULL;
+  result = (s_align*)calloc(1, sizeof(s_align));
+  
+//  long hesize = query.aa[0].len*32;
+//  BYTE* hearray = (BYTE*) xmalloc(hesize);
 }
 
 // -i ../swimd/test_data/db/uniprot_sprot15.fasta -d ../swimd/test_data/db/uniprot_sprot15.fasta -m 88 -b 1000 -v 1000 -e 10000 -M BLOSUM50 -G 13 -E 2 -s
@@ -759,22 +776,9 @@ void align_adjusted() {
   long gapopen_BlastDef = 11 * scaling_factor_BL62;
   long gapextend_BlastDef = 1 * scaling_factor_BL62;
 
-  int16_t* mata = (int16_t*)calloc(BLASTAA_SIZE*BLASTAA_SIZE, sizeof(int16_t));
-  int8_t* mat8 = (int8_t*)calloc(BLASTAA_SIZE*BLASTAA_SIZE, sizeof(int8_t));
-
+  s_profile* p = NULL;
   int32_t maskLen = query.aa[0].len / 2;
   
-//  int8_t* read_reverse = 0;
-//  long reverse_len = 0;
-  
-//  int err = 0;
-  s_profile* p = NULL;
-//  s_align* result = NULL;
-  s_align* result = (s_align*)calloc(1, sizeof(s_align));
-
-  long hesize = query.aa[0].len*32;
-  BYTE* hearray = (BYTE*) xmalloc(hesize);
-
   for(long i = 0; i<hits; i++)
   {
     adjusted_score_blast = 0;
@@ -798,13 +802,14 @@ void align_adjusted() {
             mat8[a * BLASTAA_SIZE + b] = sbp->matrix->data[b][a]; // because of asymmetric matrix, [b][a] is correct for sswlib and fullsw
           }
 //        p = ssw_init_word((const int8_t*)query.aa[0].seq, query.aa[0].len, mata, BLASTAA_SIZE);
-//		alignment_end* bests = sw_sse2_word((const int8_t*)subject_sequence, 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minscore2 * scaling_factor, maskLen);
+//		sw_sse2_word((const int8_t*)subject_sequence, 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minscore2 * scaling_factor, maskLen, &ae);
         p = ssw_init((const int8_t*)query.aa[0].seq, query.aa[0].len, mat8, BLASTAA_SIZE, 0);
-		alignment_end* bests = sw_sse2_byte((const int8_t*)subject_sequence, 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minscore2 * scaling_factor, p->bias, maskLen);
-        result->score1 = bests[0].score;
-        result->ref_end1 = bests[0].ref;
-        result->read_end1 = bests[0].read;
-        free(bests);
+		sw_sse2_byte((const int8_t*)subject_sequence, 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minscore2 * scaling_factor, p->bias, maskLen, &ae);
+        if (p)
+            init_destroy(p);
+        result->score1 = ae.score;
+        result->ref_end1 = ae.ref;
+        result->read_end1 = ae.read;
 /*        if (result->score1 < minscore2 * scaling_factor && score * scaling_factor > 32767)
             adjusted_score = score * scaling_factor;
         else
@@ -820,11 +825,12 @@ void align_adjusted() {
             adjusted_score_matrix_63[(a<<5) + b] = sbpBL62->matrix->data[a][b];
           }
         p = ssw_init_word((const int8_t*)qseq, query.aa[0].len, mata, BLASTAA_SIZE);
-		alignment_end* bests = sw_sse2_word((const int8_t*)subject_sequence, 0, subject_length, p->readLen, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen);
-        adjusted_score_blast = bests[0].score;
-        matchEnd = bests[0].ref;
-        queryEnd = bests[0].read;
-        free(bests);
+		sw_sse2_word((const int8_t*)subject_sequence, 0, subject_length, p->readLen, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+        if (p)
+            init_destroy(p);
+        adjusted_score_blast = ae.score;
+        matchEnd = ae.ref;
+        queryEnd = ae.read;
         
         hits_enter_seq(i, subject_sequence, subject_length);
         matchStart = queryStart = 0;
@@ -892,18 +898,19 @@ void align_adjusted() {
     hits_enter_adjusted_score(i, adjusted_score, adjusted_score_blast);
   }
   
-  if (result)
-    align_destroy(result);
-  if (p)
-    init_destroy(p);
-  free(mata);
-  free(mat8);
-  free(hearray);
-//  free(read_reverse);
   db_thread_destruct(dbt);
 }
 
 void align_adjusted_done() {
+  if (result)
+    align_destroy(result);
+
+  align_end_destroy(&ae);
+  free(mata);
+  free(mat8);
+//  free(hearray);
+//  free(read_reverse);
+
   Blast_CompositionWorkspaceFree(&NRrecord);
   compo_done(&sbp, &scaledMatrixInfo);
 
@@ -1746,7 +1753,7 @@ void search_chunk(struct search_data * sdp)
 	  long seqnosf = sdp->in_list[i];
 	  long score = sdp->scores[i];
 
-//	  if (score < SCORELIMIT_7)
+	  if (score > minscore)
 	  {
 	    long seqno = seqnosf >> 3;
 	    dstrand = (seqnosf >> 2) & 1;
