@@ -49,12 +49,13 @@ typedef struct _profile{
 	@field	cigarLen	length of the cigar string; cigarLen = 0 when the best alignment path is not available
 */
 typedef struct {
-	uint16_t score1;
-	uint16_t score2;
+	uint32_t score1;
+	uint32_t score2;
 	int32_t ref_begin1;
 	int32_t ref_end1;
 	int32_t	read_begin1;
 	int32_t read_end1;
+	int32_t read_end2;
 	int32_t ref_end2;
 	uint32_t* cigar;
 	int32_t cigarLen;

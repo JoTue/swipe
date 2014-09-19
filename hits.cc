@@ -64,7 +64,7 @@ struct hits_entry
   long score;
   long score_align;
   long score_adjusted;  // probably scaled by scaling_factor
-  long score_adjusted_blast;  // probably scaled by scaling_factor
+  long score_adjusted_blast, score_adjusted_blast_rev;  // probably scaled by scaling_factor
   long align_hint;
   long bestq;
   long align_q_start;
@@ -72,6 +72,12 @@ struct hits_entry
   long align_d_start;
   long align_d_end;
   long header_length;
+  long identities;
+  long positives;
+  long gaps;
+  long aligned;
+  long indels;
+  long flags;
 } * hits_list;
 
 
@@ -263,10 +269,12 @@ void hits_enter_align_hint(long i, long q_end, long d_end)
   hits_list[i].align_hint = d_end;
 }
 
-void hits_enter_adjusted_score(long i, long score, long score_blast)
+void hits_enter_adjusted_score(long i, long score, long score_blast, long score_blast_rev, long flags)
 {
   hits_list[i].score_adjusted = score;
   hits_list[i].score_adjusted_blast = score_blast;
+  hits_list[i].score_adjusted_blast_rev = score_blast_rev;
+  hits_list[i].flags = flags;
 }
 
 void hits_enter_score(long i, long score)
@@ -811,7 +819,8 @@ void show_align(long i)
   else
   {
     sym = sym_ncbi_aa;
-    q_seq = query.aa[3*q_strand+q_frame].seq;
+//    q_seq = query.aa[3*q_strand+q_frame].seq;
+    q_seq = (mask ? query.aa[3*q_strand+q_frame].seq_unmasked : query.aa[3*q_strand+q_frame].seq);
     q_len = query.aa[3*q_strand+q_frame].len;
     q_len_nt = query.nt[0].len;
     d_len_nt = hits_list[i].dlennt;
@@ -1028,6 +1037,82 @@ void whole_align(long i,
       d_last = 3 * d_last + d_frame + 2;
     }
   }
+
+  q_first++;
+  q_last++;
+  d_first++;
+  d_last++;
+
+  long maxqpos = q_first > q_last ? q_first : q_last;
+  long maxdpos = d_first > d_last ? d_first : d_last;
+  long maxpos = maxqpos > maxdpos ? maxqpos : maxdpos;
+  poswidth = 1;
+  while (maxpos > 9)
+  {
+    maxpos /= 10;
+    poswidth++;
+  }
+}
+
+void count_align_matrix(long i, int64_t * score_matrix, const char *q_seq, long q_len, const char *d_seq, long d_len) {
+  char * alignment = hits_list[i].alignment;
+
+  hits_list[i].identities = 0;
+  hits_list[i].positives = 0;
+  hits_list[i].indels = 0;
+  hits_list[i].gaps = 0;
+  hits_list[i].aligned = 0;
+
+  q_pos = hits_list[i].align_q_start;
+  d_pos = hits_list[i].align_d_start;
+
+  char * p = alignment;
+  char * e = alignment + strlen(alignment);
+
+  while(p < e)
+  {
+    char op = *p++;
+    long len;
+    int n;
+    sscanf(p, "%ld%n", & len, & n);
+    p += n;
+
+    hits_list[i].aligned += len;
+    if (op == 'D')
+    {
+      hits_list[i].gaps += 1;
+      hits_list[i].indels += len;
+      q_pos += len;
+    }
+    else if (op == 'I')
+    {
+      hits_list[i].gaps += 1;
+      hits_list[i].indels += len;
+      d_pos += len;
+    }
+    else
+    {
+      for(long j=0; j<len; j++)
+      {
+	char qs = q_seq[q_pos++];
+	char ds = d_seq[d_pos++];
+	if (qs == ds)
+	{
+	  (hits_list[i].identities)++;
+	  (hits_list[i].positives)++;
+	}
+	else if (score_matrix[32*qs+ds] > 0)
+	  (hits_list[i].positives)++;
+      }
+    }
+  }
+
+  /* calculate first and last alignment positions for display */
+
+  q_first = hits_list[i].align_q_start;
+  q_last = hits_list[i].align_q_end;
+  d_first = hits_list[i].align_d_start;
+  d_last = hits_list[i].align_d_end;
 
   q_first++;
   q_last++;
@@ -1791,7 +1876,7 @@ void hits_show_tsv(long showalignments,
 	    d_first,
 	    d_last);
 
-    if (stats_available)
+/*    if (stats_available)
     {
       double expect = Kmn * exp(- lambda * score);
       fprintf(out, "\t%.2g", expect);
@@ -1799,7 +1884,7 @@ void hits_show_tsv(long showalignments,
       fprintf(out, "\t%.1f", bits);
     }
     else
-    {
+*/    {
       fprintf(out, "\t%ld", score);
     }
 
@@ -2005,6 +2090,35 @@ void hits_show_end(long view)
   }
 }
 
+/**
+ * C++ version 0.4 char* style "itoa":
+ * Written by Lukás Chmela
+ * Released under GPLv3.
+ */
+char* itoa(int value, char* result, int base) {
+    // check that the base if valid
+    if (base < 2 || base > 36) { *result = '\0'; return result; }
+
+    char* ptr = result, *ptr1 = result, tmp_char;
+    int tmp_value;
+
+    do {
+        tmp_value = value;
+        value /= base;
+        *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz" [35 + (tmp_value - value * base)];
+    } while ( value );
+
+    // Apply negative sign
+    if (tmp_value < 0) *ptr++ = '-';
+    *ptr-- = '\0';
+    while(ptr1 < ptr) {
+        tmp_char = *ptr;
+        *ptr--= *ptr1;
+        *ptr1++ = tmp_char;
+    }
+    return result;
+}
+	
 void hits_show_score_only(struct db_thread_s * t)
 {
   char * address;
@@ -2017,12 +2131,12 @@ void hits_show_score_only(struct db_thread_s * t)
   int linklen;
 		       
 
-  long identities;
+/*  long identities;
   long positives;
   long gaps;
   long aligned;
   long indels;
-
+*/
   for(long i=0; i<hits_count; i++)
   {
     struct hits_entry * h = hits_list + i;
@@ -2031,7 +2145,7 @@ void hits_show_score_only(struct db_thread_s * t)
         continue;
     
     gi = 0;
-    identities = positives = gaps = aligned = indels = 0;
+    //identities = positives = gaps = aligned = indels = 0;
 
     db_mapheaders(t, h->seqno, h->seqno);
     db_getheader(t, h->seqno, & address, & length);
@@ -2048,36 +2162,39 @@ void hits_show_score_only(struct db_thread_s * t)
     id_end = strchr(query.description, ' '); // should be strnchr(title, length, ' ');
     if (id_end)
         qry_id_len = id_end - query.description;
-    fprintf(out, "%.*s\t%.*s", qry_id_len, query.description, subj_id_len, title);
-
-    if (h->alignment)
-        count_align(i, & identities, & positives, & indels, & aligned, & gaps);
-
-    long score = h->score;
-
-/*    if (stats_available)
-    {
-      double expect = Kmn * exp(- lambda * score);
-      double bits = lambda_d_log2 * score - logK_d_log2;
-      double bits_adjusted = (0.193 * round(h->score_adjusted) - log(0.0350))/log(2);
-      double bits_blast = (0.193 * round(h->score_adjusted_blast) - log(0.0350))/log(2);
-      fprintf(out, "\t%.2g\t%.1f\t%.1f\t%.1f", expect, bits, bits_adjusted, bits_blast);
-    }
-*/
-    // qseqid sseqid masked_score, mskAdjScrBL50, umskAdjScrBL62 pident ppos qstart qend sstart send length nident mismatch gapopen gaps
-    fprintf(out, "\t%ld\t%.2f\t%.2f\t%ld\t%ld\t%ld\t%ld", score, (float)h->score_adjusted/scaling_factor, (float)h->score_adjusted_blast/scaling_factor_BL62, h->align_q_start+1, h->align_q_end+1, h->align_d_start+1, h->align_d_end+1);
-    if (h->alignment)
-        fprintf(out, "\t%.2f\t%.2f\t%ld\t%ld\t%ld\t%ld\t%ld\n",
-            100.0 * identities / aligned,
-            100.0 * positives / aligned,
-            aligned,
-            identities,
-            aligned - identities - indels,
-            gaps,
-            indels
-        );
+/*    if (h->flags & HIT_SUBJECT_QUERY_BEST_BL62)
+      fprintf(out, "%.*s\t%.*s", subj_id_len, title, qry_id_len, query.description);
     else
+*/      fprintf(out, "%.*s\t%.*s", qry_id_len, query.description, subj_id_len, title);
+
+//    if (h->alignment)
+//        count_align(i, & identities, & positives, & indels, & aligned, & gaps);
+
+//    long score = h->score;
+
+    char flags[100];
+    itoa(h->flags, flags, 2);       //2 means binary u can convert n upto base 36
+       
+    // qseqid sseqid AdjScrBL62 AdjScrBL62_symm qstart qend sstart send pident ppos length nident positive mismatch gapopen gaps flags
+    fprintf(out, /*"\t%ld\t%d"*/"\t%d\t%d\t%ld\t%ld\t%ld\t%ld", /*score, (int)round((float)h->score_adjusted/scaling_factor),*/ (int)round((float)h->score_adjusted_blast/scaling_factor_BL62), (int)round((float)h->score_adjusted_blast_rev/scaling_factor_BL62), h->align_q_start+1, h->align_q_end+1, h->align_d_start+1, h->align_d_end+1);
+    if (h->alignment) {
+//        long positives = h->aligned - (h->aligned - h->identities - h->indels);
+        fprintf(out, "\t%.2f\t%.2f\t%ld\t%ld\t%ld\t%ld\t%ld\t%ld\t%s\n",
+            100.0 * h->identities / h->aligned,
+            100.0 * h->positives / h->aligned,
+            h->aligned,
+            h->identities,
+            h->positives,
+            h->aligned - h->identities - h->indels,
+            h->gaps,
+            h->indels,
+            flags
+        );
+        //show_align(i);
+        //fprintf(out, "%s\n", h->alignment);
+    } else
         fprintf(out, "\n");
+
     /*if (h->score_align != h->score_adjusted_blast)
         fprintf(out, "Raw scores differ: %ld vs %ld (%.2f vs %.2f)\n", h->score_align, h->score_adjusted_blast, (float)h->score_align/scaling_factor, (float)h->score_adjusted_blast/scaling_factor_BL62);
         */

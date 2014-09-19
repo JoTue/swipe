@@ -329,21 +329,21 @@ int64_t * score_matrix_63 = NULL;
 
 void score_matrix_dump()
 {
-  fprintf(out, "     ");
+  fprintf(out, "    ");
   for(int i=0; i<32; i++)
-    fprintf(out, "%2d", i);
+    fprintf(out, "%5d", i);
   fprintf(out, "\n");
-  fprintf(out, "     ");
+  fprintf(out, "    ");
   for(int i=0; i<32; i++)
-    fprintf(out, " %c", sym_ncbi_aa[i]);
+    fprintf(out, "    %c", sym_ncbi_aa[i]);
   fprintf(out, "\n");
   for(int i=0; i<32; i++)
   {
-    fprintf(out, "%2d %c ", i, sym_ncbi_aa[i]);
+    fprintf(out, "%2d %c", i, sym_ncbi_aa[i]);
     for(int j=0; j<32; j++)
       {
 //	fprintf(out, "%2I64d", score_matrix_63[(i<<5) + j]);
-	fprintf(out, "%2"PRId64, score_matrix_63[(i<<5) + j]);
+	fprintf(out, "%5"PRId64, score_matrix_63[(i<<5) + j] == -32768 ? -1 : score_matrix_63[(i<<5) + j]);
       }
     fprintf(out, "\n");
   }

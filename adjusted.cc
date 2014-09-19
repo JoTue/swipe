@@ -76,7 +76,14 @@ void compo_done(BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo) {
     BlastScoreBlkFree(*sbp);
 }
 
-int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, int unmask, const Uint1 *data, int nData) {
+void print_AminoAcidComposition(Blast_AminoAcidComposition* query_composition, Blast_AminoAcidComposition* subject_composition) {
+	int i;
+	printf("numTrueAminoAcids: %d\t%d\nprobabilities of each amino acid:\n", query_composition->numTrueAminoAcids, subject_composition->numTrueAminoAcids);
+	for (i = 0; i < COMPO_LARGEST_ALPHABET; i++)
+		printf("%2d %c %.4f %.4f\n", i, NCBISTDAA_TO_AMINOACID[i], query_composition->prob[i], subject_composition->prob[i]);
+}
+
+int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, const Blast_AminoAcidComposition* query_composition, int query_length, const Blast_AminoAcidComposition* subject_composition, int subject_length) {
 
     /* adjust_search_failed is true only if Blast_AdjustScores
      * is called and returns a nonzero value */
@@ -91,14 +98,14 @@ int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *
     /* which mode of composition adjustment is actually used? */
     EMatrixAdjustRule matrix_adjust_rule = eDontAdjustMatrix;
 
-    Blast_AminoAcidComposition subject_composition;
-    Blast_ReadAaComposition(&subject_composition, BLASTAA_SIZE, data, nData);
+//    Blast_AminoAcidComposition subject_composition;
+//    Blast_ReadAaComposition(&subject_composition, BLASTAA_SIZE, data, subject_length);
 //    Blast_ReadAaComposition(&subject_composition, BLASTAA_SIZE, &data[res.matchSeqStart], res.matchSeqEnd-res.matchSeqStart);
 
     adjust_search_failed =
       Blast_AdjustScores(sbp->matrix->data,
-                         (unmask ? &query.composition_unmasked : &query.composition), query.aa[0].len,
-                         &subject_composition, nData,
+                         query_composition, query_length,
+                         subject_composition, subject_length,
                          scaledMatrixInfo, eCompositionMatrixAdjust,
                          kReMatrixAdjustmentPseudocounts, NRrecord,
                          &matrix_adjust_rule, &s_CalcLambda,
@@ -106,10 +113,16 @@ int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *
                          compositionTestIndex,
                          &LambdaRatio);
 
+	/*printf("Lambda Ratio: %.4f\npvalueForThisPair: %.4f\nmatrix_adjust_rule: %d\n", LambdaRatio, pvalueForThisPair, matrix_adjust_rule);
+	printf("query length: %ld\nsubject length: %d\n", query.aa[0].len, nData);
+	printf("ungappedLambda: %.4f\n", scaledMatrixInfo->ungappedLambda);
+	printf("Query and Subject AA Composition:\n");
+	print_AminoAcidComposition(unmask ? &query.composition_unmasked : &query.composition, &subject_composition);
+	*/
     return adjust_search_failed;
 }
 
-int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, int unmask, const Uint1 *data, int nData, long gapopen, long gapextend,
+int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, int unmask, const Uint1 *data, int subject_length, long gapopen, long gapextend,
                 int *matchStart, int *queryStart, int *matchEnd, int *queryEnd) {
 
     int score = -1;
@@ -132,13 +145,13 @@ int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastSco
     EMatrixAdjustRule matrix_adjust_rule = eDontAdjustMatrix;
 
     Blast_AminoAcidComposition subject_composition;
-    Blast_ReadAaComposition(&subject_composition, BLASTAA_SIZE, data, nData);
+    Blast_ReadAaComposition(&subject_composition, BLASTAA_SIZE, data, subject_length);
 //    Blast_ReadAaComposition(&subject_composition, BLASTAA_SIZE, &data[res.matchSeqStart], res.matchSeqEnd-res.matchSeqStart);
 
     adjust_search_failed =
       Blast_AdjustScores(sbp->matrix->data,
                          (unmask ? &query.composition_unmasked : &query.composition), query.aa[0].len,
-                         &subject_composition, nData,
+                         &subject_composition, subject_length,
                          scaledMatrixInfo, eCompositionMatrixAdjust,
                          kReMatrixAdjustmentPseudocounts, NRrecord,
                          &matrix_adjust_rule, &s_CalcLambda,
@@ -151,7 +164,7 @@ int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastSco
 
     const char *seq = (unmask ? query.aa[0].seq_unmasked : query.aa[0].seq);
     err = Blast_SmithWatermanScoreOnly( &score, matchEnd, queryEnd,
-                                        data, nData, (const Uint1*)seq, query.aa[0].len, sbp->matrix->data, gapopen, gapextend, false, &forbidden );
+                                        data, subject_length, (const Uint1*)seq, query.aa[0].len, sbp->matrix->data, gapopen, gapextend, false, &forbidden );
     if (err)
         return err;
     
