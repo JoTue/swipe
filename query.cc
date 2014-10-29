@@ -252,6 +252,8 @@ void query_free()
       query.aa[3*s+f].len = 0;
     }
   }
+  if (mask)
+    free(query.aa[0].seq_unmasked);
 }
 
 void query_exit()

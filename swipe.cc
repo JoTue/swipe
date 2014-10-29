@@ -675,7 +675,11 @@ Blast_CompositionWorkspace *NRrecordBL62;
 using namespace std;
 vector< vector<unsigned char> >* dbSequences = new vector< vector<unsigned char> >();
 int64_t *adjusted_score_matrix_63, *adjusted_score_matrix_63_rev, *adjusted_score_matrix_63_fullsw;
+#ifdef SWLIB_8BIT
+uint8_t minScoreSWlib;
+#else
 uint16_t minScoreSWlib;
+#endif // SWLIB_8BIT
 
 int matrix_min = 0;
 int matrix_max = 0;
@@ -745,8 +749,11 @@ void align_adjusted_init() {
 //  s_align* result = NULL;
   result = (s_align*)calloc(1, sizeof(s_align));
 
-//  minScoreSWlib = 255;
+#ifdef SWLIB_8BIT
+  minScoreSWlib = 255;
+#else
   minScoreSWlib = 32767;
+#endif // SWLIB_8BIT
   long tmpMinScore = minscore2 * scaling_factor;
   if (tmpMinScore > scaling_factor && tmpMinScore < minScoreSWlib)
     minScoreSWlib = tmpMinScore;
@@ -818,23 +825,31 @@ void align_adjusted() {
     Blast_AminoAcidComposition subject_composition, subject_composition_unmasked;
     //TODO: compute subject_composition only once and store it in a global repository
     Blast_ReadAaComposition(&subject_composition, BLASTAA_SIZE, (const Uint1*)subject_sequence_masked, subject_length);
-    if (mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_SYMM) {
+    if (mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_SYMM || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM) {
       Blast_ReadAaComposition(&subject_composition_unmasked, BLASTAA_SIZE, (const Uint1*)subject_sequence_unmasked, subject_length);
-      symm_check = subject_composition.numTrueAminoAcids < subject_length || query.composition.numTrueAminoAcids < query_length;
+      symm_check = (mask == COMPOSITIONAL_MASK_SYMM || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM) && (subject_composition.numTrueAminoAcids < subject_length || query.composition.numTrueAminoAcids < query_length);
     }
-    compo_adjusted_matrix(NRrecord, sbp, scaledMatrixInfo, mask != COMPOSITIONAL_MASK_BOTH ? &query.composition_unmasked : &query.composition, query_length, mask == COMPOSITIONAL_MASK_NONE ? &subject_composition_unmasked : &subject_composition, subject_length);
+    compo_adjusted_matrix(NRrecord, sbp, scaledMatrixInfo,
+      mask != COMPOSITIONAL_MASK_BOTH && mask != COMPOSITIONAL_MASK_BOTH_MATRIXONLY ? &query.composition_unmasked : &query.composition, query_length,
+      mask == COMPOSITIONAL_MASK_NONE ? &subject_composition_unmasked : &subject_composition, subject_length);
     
     // convert adjusted score matrix to sswlib matrix
     for (int a = 0; a < BLASTAA_SIZE; a++)
       for (int b = 0; b < BLASTAA_SIZE; b++) {
-//        mat8[a * BLASTAA_SIZE + b] = sbp->matrix->data[b][a]; // because of asymmetric matrix, [b][a] is correct for sswlib and fullsw
+#ifdef SWLIB_8BIT
+        mat8[a * BLASTAA_SIZE + b] = sbp->matrix->data[b][a]; // because of asymmetric matrix, [b][a] is correct for sswlib and fullsw
+#else
         mata[a * BLASTAA_SIZE + b] = sbp->matrix->data[b][a]; // because of asymmetric matrix, [b][a] is correct for sswlib and fullsw
+#endif // SWLIB_8BIT
     }
 
-//    p = ssw_init((const int8_t*)(mask != COMPOSITIONAL_MASK_BOTH ? query_sequence_unmasked : query_sequence_masked), query_length, mat8, BLASTAA_SIZE, 0);
-//    sw_sse2_byte((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
+#ifdef SWLIB_8BIT
+    p = ssw_init((const int8_t*)(mask != COMPOSITIONAL_MASK_BOTH ? query_sequence_unmasked : query_sequence_masked), query_length, mat8, BLASTAA_SIZE, 0);
+    sw_sse2_byte((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
+#else
     p = ssw_init_word((const int8_t*)(mask != COMPOSITIONAL_MASK_BOTH ? query_sequence_unmasked : query_sequence_masked), query_length, mata, BLASTAA_SIZE);
-    sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
+    sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
+#endif // SWLIB_8BIT
     if (p)
        init_destroy(p);
     result->score1 = ae.score;
@@ -848,13 +863,19 @@ void align_adjusted() {
       // convert adjusted score matrix to swipe matix
       for (int a = 0; a < BLASTAA_SIZE; a++)
         for (int b = 0; b < BLASTAA_SIZE; b++) {
-//          mat8[a * BLASTAA_SIZE + b] = sbp->matrix->data[b][a]; // because of asymmetric matrix, [b][a] is correct for sswlib and fullsw
+#ifdef SWLIB_8BIT
+          mat8[a * BLASTAA_SIZE + b] = sbp->matrix->data[b][a]; // because of asymmetric matrix, [b][a] is correct for sswlib and fullsw
+#else
           mata[a * BLASTAA_SIZE + b] = sbp->matrix->data[b][a]; // because of asymmetric matrix, [b][a] is correct for sswlib and fullsw
+#endif // SWLIB_8BIT
         }
-//      p = ssw_init((const int8_t*)subject_sequence_unmasked, subject_length, mat8, BLASTAA_SIZE, 0);
-//      sw_sse2_byte((const int8_t*)query_sequence_masked, 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
+#ifdef SWLIB_8BIT
+      p = ssw_init((const int8_t*)subject_sequence_unmasked, subject_length, mat8, BLASTAA_SIZE, 0);
+      sw_sse2_byte((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
+#else
       p = ssw_init_word((const int8_t*)subject_sequence_unmasked, subject_length, mata, BLASTAA_SIZE);
-      sw_sse2_word((const int8_t*)query_sequence_masked, 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
+      sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
+#endif // SWLIB_8BIT
       if (p)
         init_destroy(p);
       if (ae.score > result->score1) {
@@ -869,7 +890,9 @@ void align_adjusted() {
       
       //fprintf(out, "subject sequence: \n");
       //db_print_seq_map(subject_sequence, subject_length, sym_ncbi_aa);
-      compo_adjusted_matrix(NRrecordBL62, sbpBL62, scaledMatrixInfoBL62, mask != COMPOSITIONAL_MASK_BOTH ? &query.composition_unmasked : &query.composition, query_length, mask == COMPOSITIONAL_MASK_NONE ? &subject_composition_unmasked : &subject_composition, subject_length);
+      compo_adjusted_matrix(NRrecordBL62, sbpBL62, scaledMatrixInfoBL62, 
+        mask != COMPOSITIONAL_MASK_BOTH && mask != COMPOSITIONAL_MASK_BOTH_MATRIXONLY ? &query.composition_unmasked : &query.composition, query_length,
+        mask == COMPOSITIONAL_MASK_NONE ? &subject_composition_unmasked : &subject_composition, subject_length);
       // convert adjusted score matrix to swipe matix
       for (int a = 0; a < BLASTAA_SIZE; a++)
         for (int b = 0; b < BLASTAA_SIZE; b++) {
@@ -878,7 +901,8 @@ void align_adjusted() {
           adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
         }
       p = ssw_init_word((const int8_t*)(mask != COMPOSITIONAL_MASK_BOTH ? query_sequence_unmasked : query_sequence_masked), query_length, mata, BLASTAA_SIZE);
-      sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+      sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+    
       if (p)
         init_destroy(p);
       result->score1 = ae.score;
@@ -891,7 +915,7 @@ void align_adjusted() {
       matchStart = queryStart = 0;
       qseq = mask != COMPOSITIONAL_MASK_BOTH ? query_sequence_unmasked : query_sequence_masked;
       qlen = query_length;
-      dseq = mask == COMPOSITIONAL_MASK_NONE ? subject_sequence_unmasked : subject_sequence_masked;
+      dseq = mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked;
       dlen = subject_length;
       hits_enter_seq(i, dseq, dlen);
       
@@ -916,7 +940,7 @@ void align_adjusted() {
             adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
           }
         p = ssw_init_word((const int8_t*)subject_sequence_unmasked, subject_length, mata, BLASTAA_SIZE);
-        sw_sse2_word((const int8_t*)query_sequence_masked, 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+        sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
         if (p)
           init_destroy(p);
         result->score2 = ae.score;
@@ -926,7 +950,7 @@ void align_adjusted() {
           flags |= HIT_LARGE_SCORE;
           char *qseq2 = subject_sequence_unmasked;
           long qlen2 = subject_length;
-          char *dseq2 = query_sequence_masked;
+          char *dseq2 = mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked;
           long dlen2 = query_length;
           if (hesize < dlen2 * 32) {
             hesize = dlen2*32;
@@ -957,7 +981,7 @@ void align_adjusted() {
           used_score_matrix_63 = adjusted_score_matrix_63_rev;
           qseq = subject_sequence_unmasked;
           qlen = subject_length;
-          dseq = query_sequence_masked;
+          dseq = mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked;
           dlen = query_length;
         } else {
           adjusted_score_blast = result->score1;

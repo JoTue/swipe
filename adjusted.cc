@@ -10,6 +10,8 @@
 #include <algo/blast/core/matrix_freq_ratios.h>
 //#include "blast_kappa.h"
 
+#define MINIMUM_LENGTH_NEAR_IDENTICAL 50
+
 /** pseudocounts for relative-entropy-based score matrix adjustment */
 int kReMatrixAdjustmentPseudocounts = 20;
 
@@ -83,6 +85,27 @@ void print_AminoAcidComposition(Blast_AminoAcidComposition* query_composition, B
 		printf("%2d %c %.4f %.4f\n", i, NCBISTDAA_TO_AMINOACID[i], query_composition->prob[i], subject_composition->prob[i]);
 }
 
+/* this function is called for each align in the window, hence we need both arguments */
+/*static bool preliminaryTestNearIdentical(int queryLength, int queryStart, int queryEnd, int matchStart, int matchEnd, int score, double cutoff) {
+  int align_len;
+
+  // if cutoff > 0, use the more flexible test that allows for multiple HSPs, and gaps in the alignments
+  if (cutoff > 0) {
+      if ((matchEnd - matchStart +1) <
+          (MIN(queryLength,  MINIMUM_LENGTH_NEAR_IDENTICAL)))
+          return(FALSE);
+
+      align_len = MIN(queryEnd - queryStart,
+                      matchEnd - matchStart);
+
+      if ((double)score / (double)align_len < cutoff) {
+          return (FALSE);
+      }
+  }
+
+  return(TRUE);
+}
+*/
 int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, const Blast_AminoAcidComposition* query_composition, int query_length, const Blast_AminoAcidComposition* subject_composition, int subject_length) {
 
     /* adjust_search_failed is true only if Blast_AdjustScores

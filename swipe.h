@@ -461,12 +461,18 @@ typedef double Nlm_FloatHi;
 #define COMPOSITIONAL_MASK_BOTH 2
 #define COMPOSITIONAL_MASK_NONE 3
 #define COMPOSITIONAL_MASK_SYMM 4
+#define COMPOSITIONAL_MASK_BOTH_MATRIXONLY 5
+#define COMPOSITIONAL_MASK_MATRIXONLY_SYMM 6
 
 #define HIT_SUBJECT_QUERY_BEST_BL50 0b0001
 #define HIT_SUBJECT_QUERY_BEST_BL62 0b0010
 #define HIT_LARGE_SCORE             0b1000
 
+#ifdef SWLIB_8BIT
+static const int scaling_factor = 3;
+#else
 static const int scaling_factor = 32;
+#endif // SWLIB_8BIT
 static const int scaling_factor_BL62 = 32;
 void compo_init(const char *matrixName, BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo, int scaling_factor);
 void compo_done(BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo);
@@ -479,6 +485,7 @@ void hits_enter_score(long i, long score);
 void hits_enter_adjusted_score(long i, long score, long score_blast, long score_blast_rev, long flags);
 void count_align_matrix(long i, int64_t * score_matrix, const char *q_seq, long q_len, const char *d_seq, long d_len);
 void show_align(long i);
+//static bool preliminaryTestNearIdentical(int queryLength, int queryStart, int queryEnd, int matchStart, int matchEnd, int score, double cutoff);
 #endif // COMPO_ADJUSTMENT
 
 #include "blastkar_partial.h"
