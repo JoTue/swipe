@@ -227,6 +227,7 @@ void query_init(const char * queryname, long symtype, long strands)
   }
 
   query_line[0] = 0;
+  query.aa[0].seq_unmasked = 0;
   fgets(query_line, LINE_MAX, query_fp);
 }
 
@@ -252,8 +253,10 @@ void query_free()
       query.aa[3*s+f].len = 0;
     }
   }
-  if (mask)
+  if (mask && query.aa[0].seq_unmasked) {
     free(query.aa[0].seq_unmasked);
+    query.aa[0].seq_unmasked = 0;
+  }
 }
 
 void query_exit()
@@ -328,7 +331,7 @@ int query_read()
 	  size += LINE_MAX;
 	  query_sequence = (char*) xrealloc(query_sequence, size);
       if (mask)
-        query_sequence_unmasked = (char*) xrealloc(query_sequence, size);
+        query_sequence_unmasked = (char*) xrealloc(query_sequence_unmasked, size);
 	}
     if (mask) {
 	  query_sequence_unmasked[query_length] = m;

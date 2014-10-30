@@ -2174,8 +2174,8 @@ void hits_show_score_only(struct db_thread_s * t)
     itoa(h->flags, flags, 2);       //2 means binary u can convert n upto base 36
        
     // qseqid sseqid AdjScrBL62 AdjScrBL62_symm qstart qend sstart send pident ppos length nident positive mismatch gapopen gaps flags
-    long score = h->score; fprintf(out, "\t%ld\t%d\t%d\t%d\t%ld\t%ld\t%ld\t%ld", score, (int)round((float)h->score_adjusted/scaling_factor), (int)round((float)h->score_adjusted_blast/scaling_factor_BL62), (int)round((float)h->score_adjusted_blast_rev/scaling_factor_BL62), h->align_q_start+1, h->align_q_end+1, h->align_d_start+1, h->align_d_end+1);
-//    fprintf(out, /*"\t%ld\t%d"*/"\t%d\t%d\t%ld\t%ld\t%ld\t%ld", /*score, (int)round((float)h->score_adjusted/scaling_factor),*/ (int)round((float)h->score_adjusted_blast/scaling_factor_BL62), (int)round((float)h->score_adjusted_blast_rev/scaling_factor_BL62), h->align_q_start+1, h->align_q_end+1, h->align_d_start+1, h->align_d_end+1);
+//    long score = h->score; fprintf(out, "\t%ld\t%d\t%d\t%d\t%ld\t%ld\t%ld\t%ld", score, (int)round((float)h->score_adjusted/scaling_factor), (int)round((float)h->score_adjusted_blast/scaling_factor_BL62), (int)round((float)h->score_adjusted_blast_rev/scaling_factor_BL62), h->align_q_start+1, h->align_q_end+1, h->align_d_start+1, h->align_d_end+1);
+    fprintf(out, /*"\t%ld\t%d"*/"\t%d\t%d\t%ld\t%ld\t%ld\t%ld", /*score, (int)round((float)h->score_adjusted/scaling_factor),*/ (int)round((float)h->score_adjusted_blast/scaling_factor_BL62), (int)round((float)h->score_adjusted_blast_rev/scaling_factor_BL62), h->align_q_start+1, h->align_q_end+1, h->align_d_start+1, h->align_d_end+1);
     if (h->alignment) {
 //        long positives = h->aligned - (h->aligned - h->identities - h->indels);
         fprintf(out, "\t%.2f\t%.2f\t%ld\t%ld\t%ld\t%ld\t%ld\t%ld\t%s\n",

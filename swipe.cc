@@ -900,8 +900,8 @@ void align_adjusted() {
           adjusted_score_matrix_63[(a<<5) + b] = sbpBL62->matrix->data[a][b];
           adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
         }
-      p = ssw_init_word((const int8_t*)(mask != COMPOSITIONAL_MASK_BOTH ? query_sequence_unmasked : query_sequence_masked), query_length, mata, BLASTAA_SIZE);
-      sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+      p = ssw_init_word((const int8_t*)query_sequence_unmasked, query_length, mata, BLASTAA_SIZE);
+      sw_sse2_word((const int8_t*)subject_sequence_unmasked, 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
     
       if (p)
         init_destroy(p);
@@ -913,9 +913,9 @@ void align_adjusted() {
       }
       
       matchStart = queryStart = 0;
-      qseq = mask != COMPOSITIONAL_MASK_BOTH ? query_sequence_unmasked : query_sequence_masked;
+      qseq = query_sequence_unmasked;
       qlen = query_length;
-      dseq = mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked;
+      dseq = subject_sequence_unmasked;
       dlen = subject_length;
       hits_enter_seq(i, dseq, dlen);
       
@@ -940,7 +940,7 @@ void align_adjusted() {
             adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
           }
         p = ssw_init_word((const int8_t*)subject_sequence_unmasked, subject_length, mata, BLASTAA_SIZE);
-        sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+        sw_sse2_word((const int8_t*)query_sequence_unmasked, 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
         if (p)
           init_destroy(p);
         result->score2 = ae.score;
@@ -950,7 +950,7 @@ void align_adjusted() {
           flags |= HIT_LARGE_SCORE;
           char *qseq2 = subject_sequence_unmasked;
           long qlen2 = subject_length;
-          char *dseq2 = mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked;
+          char *dseq2 = query_sequence_unmasked;
           long dlen2 = query_length;
           if (hesize < dlen2 * 32) {
             hesize = dlen2*32;
@@ -981,7 +981,7 @@ void align_adjusted() {
           used_score_matrix_63 = adjusted_score_matrix_63_rev;
           qseq = subject_sequence_unmasked;
           qlen = subject_length;
-          dseq = mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked;
+          dseq = query_sequence_unmasked;
           dlen = query_length;
         } else {
           adjusted_score_blast = result->score1;
