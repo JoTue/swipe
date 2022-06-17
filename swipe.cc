@@ -26,6 +26,25 @@
 #include "swipe.h"
 #include "ssw.h"
 
+// time measuring
+double time_stage1 = 0.0;
+double time_stage2 = 0.0;
+double time_stage2b = 0.0;
+double time_stage2c = 0.0;
+double time_stage2d = 0.0;
+double time_stage2e = 0.0;
+double time_stage2f = 0.0;
+double time_stage3 = 0.0;
+double time_work = 0.0;
+// count number of pairs computed in each stage
+long pairs1 = 0;
+long pairs2 = 0;
+long pairs2b = 0;
+long pairs2c = 0;
+long pairs3 = 0;
+long pairs3b = 0;
+long pairs3c = 0;
+
 /* ARGUMENTS AND THEIR DEFAULTS */
 
 #define DEFAULT_MAXMATCHES 250
@@ -812,6 +831,10 @@ void align_adjusted() {
       continue;
 
     // stage 2
+
+    pairs2++;
+
+    auto begin2 = std::chrono::high_resolution_clock::now();
     
     db_mapsequences(dbt, seqno, seqno);
     db_getsequence(dbt, seqno, dstrand, dframe, &subject_sequence_masked, &subject_length, &ntlen, 0);
@@ -829,6 +852,12 @@ void align_adjusted() {
       Blast_ReadAaComposition(&subject_composition_unmasked, BLASTAA_SIZE, (const Uint1*)subject_sequence_unmasked, subject_length);
       symm_check = (mask == COMPOSITIONAL_MASK_SYMM || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM) && (subject_composition.numTrueAminoAcids < subject_length || query.composition.numTrueAminoAcids < query_length);
     }
+
+    // time init, aa composition
+    auto end2b = std::chrono::high_resolution_clock::now();
+    time_stage2b += (end2b - begin2).count();
+    auto begin2c = std::chrono::high_resolution_clock::now();
+
     compo_adjusted_matrix(NRrecord, sbp, scaledMatrixInfo,
       mask != COMPOSITIONAL_MASK_BOTH && mask != COMPOSITIONAL_MASK_BOTH_MATRIXONLY ? &query.composition_unmasked : &query.composition, query_length,
       mask == COMPOSITIONAL_MASK_NONE ? &subject_composition_unmasked : &subject_composition, subject_length);
@@ -843,6 +872,11 @@ void align_adjusted() {
 #endif // SWLIB_8BIT
     }
 
+    // time 1st comp. adjustment
+    auto end2c = std::chrono::high_resolution_clock::now();
+    time_stage2c += (end2c - begin2c).count();
+    auto begin2d = std::chrono::high_resolution_clock::now();
+
 #ifdef SWLIB_8BIT
     p = ssw_init((const int8_t*)(mask != COMPOSITIONAL_MASK_BOTH ? query_sequence_unmasked : query_sequence_masked), query_length, mat8, BLASTAA_SIZE, 0);
     sw_sse2_byte((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
@@ -855,8 +889,14 @@ void align_adjusted() {
     result->score1 = ae.score;
     result->ref_end1 = ae.ref;
     result->read_end1 = ae.read;
+
+    // time 1st alignment
+    auto end2d = std::chrono::high_resolution_clock::now();
+    time_stage2d += (end2d - begin2d).count();
+    auto begin2e = std::chrono::high_resolution_clock::now();
     
     if (symm_check && result->score1 < minscore2 * scaling_factor) {
+      pairs2b++;
       //TODO: check for existance of low complexity regions and continue only of such are found in either the query or the subject sequence.
       // Otherwise symmetrical score will not change.
       compo_adjusted_matrix(NRrecord, sbp, scaledMatrixInfo, &subject_composition_unmasked, subject_length, &query.composition, query_length);
@@ -869,6 +909,12 @@ void align_adjusted() {
           mata[a * BLASTAA_SIZE + b] = sbp->matrix->data[b][a]; // because of asymmetric matrix, [b][a] is correct for sswlib and fullsw
 #endif // SWLIB_8BIT
         }
+
+      // time reverse comp. adjustment
+      auto end2e = std::chrono::high_resolution_clock::now();
+      time_stage2e += (end2e - begin2e).count();
+      auto begin2f = std::chrono::high_resolution_clock::now();
+
 #ifdef SWLIB_8BIT
       p = ssw_init((const int8_t*)subject_sequence_unmasked, subject_length, mat8, BLASTAA_SIZE, 0);
       sw_sse2_byte((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
@@ -879,14 +925,27 @@ void align_adjusted() {
       if (p)
         init_destroy(p);
       if (ae.score > result->score1) {
+        pairs2c++;
         result->score1 = ae.score;
         flags |= HIT_SUBJECT_QUERY_BEST_BL50;
       }
+
+      // time reverse alignment
+      auto end2f = std::chrono::high_resolution_clock::now();
+      time_stage2f += (end2e - begin2e).count();
     }
     adjusted_score = result->score1;
+
+    // time stage 2
+    auto end2 = std::chrono::high_resolution_clock::now();
+    time_stage2 += (end2 - begin2).count();
     
     if (adjusted_score >= minscore2 * scaling_factor) {
       // stage 3
+
+      pairs3++;
+
+      auto begin3 = std::chrono::high_resolution_clock::now();
       
       //fprintf(out, "subject sequence: \n");
       //db_print_seq_map(subject_sequence, subject_length, sym_ncbi_aa);
@@ -920,6 +979,8 @@ void align_adjusted() {
       hits_enter_seq(i, dseq, dlen);
       
       if (symm_check) {
+        pairs3b++;
+
         if (result->score1 == 32767) {
           if (hesize < dlen * 32) {
             hesize = dlen*32;
@@ -962,6 +1023,7 @@ void align_adjusted() {
 //        if (round(result->score2/scaling_factor_BL62) > round(result->score1/scaling_factor_BL62)) {
 //        if (round((float)result->score2/scaling_factor_BL62) > round((float)result->score1/scaling_factor_BL62)) {
         if (result->score2 > result->score1) {
+          pairs3c++;
           flags |= HIT_SUBJECT_QUERY_BEST_BL62;
           //fprintf(stderr, "symmetrical score is larger than adjusted blastp score: %d vs %d\n", (int)round(result->score2/scaling_factor_BL62), (int)round(result->score1/scaling_factor_BL62));
         }
@@ -1056,6 +1118,11 @@ void align_adjusted() {
 //        score_matrix_dump();
       count_align_matrix(i, used_score_matrix_63, qseq, qlen, dseq, dlen);
 //        show_align(i);
+
+      // time stage 3
+      auto end3 = std::chrono::high_resolution_clock::now();
+      time_stage3 += (end3 - begin3).count();
+
     } else
       hits_enter_align_coord(i, queryStart, queryEnd, matchStart, matchEnd, 0);
     hits_enter_adjusted_score(i, adjusted_score, adjusted_score_blast, adjusted_score_blast_rev, flags);
@@ -1919,6 +1986,7 @@ void search_chunk(struct search_data * sdp)
 
 	for (int i=0; i<sdp->in_count; i++)
 	{
+    pairs1++;
 	  long seqnosf = sdp->in_list[i];
 	  long score = sdp->scores[i];
 
@@ -2287,7 +2355,11 @@ void work()
 
   clock_start(&ti);
 
+  auto begin1 = std::chrono::high_resolution_clock::now();
   run_threads();
+  // time stage 1
+  auto end1 = std::chrono::high_resolution_clock::now();
+  time_stage1 += (end1 - begin1).count();
 
 #if 1
   if (view == 0)
@@ -2318,8 +2390,9 @@ void work()
   //  if (view == 0)
   //    clock_start(&ti);
 
-  if (view!=88)
+  if (view!=88){
     align_threads();
+  }
 #ifdef COMPO_ADJUSTMENT
   else {
     align_adjusted();
@@ -2341,6 +2414,9 @@ void work()
 
 int main(int argc, char**argv)
 {
+  // Record start time
+  auto start_main = std::chrono::high_resolution_clock::now();
+
 #ifdef MPISWIPE
   int rc = MPI_Init(&argc, &argv);
   if (rc != MPI_SUCCESS)
@@ -2400,6 +2476,7 @@ int main(int argc, char**argv)
     while (query_read())
     {
     //TODO: implement masking
+    auto start_work = std::chrono::high_resolution_clock::now();
 
 #ifdef MPISWIPE
       if (rank == 0)
@@ -2411,6 +2488,10 @@ int main(int argc, char**argv)
 #endif
 
       queryno++;
+
+      auto end_work = std::chrono::high_resolution_clock::now();
+      time_work += (end_work - start_work).count();
+      // std::cout << "time_work: " << (end_work - start_work).count() * 1e-9 << " s\n";
     }
 
 #ifdef MPISWIPE
@@ -2454,4 +2535,24 @@ int main(int argc, char**argv)
 
   if (outfile)
     fclose(out);
+
+  // print time, counts
+  auto end_main = std::chrono::high_resolution_clock::now();
+  std::cout << "time_main: " << (end_main - start_main).count() * 1e-9 << " s\n";
+  std::cout << "time_work: " << time_work * 1e-9 << " s\n";
+  std::cout << "time_stage1: " << time_stage1 * 1e-9 << " s\n";
+  std::cout << "time_stage2: " << time_stage2 * 1e-9 << " s\n";
+  std::cout << "time_stage2b: " << time_stage2b * 1e-9 << " s\n";
+  std::cout << "time_stage2c: " << time_stage2c * 1e-9 << " s\n";
+  std::cout << "time_stage2d: " << time_stage2d * 1e-9 << " s\n";
+  std::cout << "time_stage2e: " << time_stage2e * 1e-9 << " s\n";
+  std::cout << "time_stage2f: " << time_stage2f * 1e-9 << " s\n";
+  std::cout << "time_stage3: " << time_stage3 * 1e-9 << " s\n";
+  std::cout << "pairs1: " << pairs1 << "\n";
+  std::cout << "pairs2: " << pairs2 << "\n";
+  std::cout << "pairs2b: " << pairs2b << "\n";
+  std::cout << "pairs2c: " << pairs2c << "\n";
+  std::cout << "pairs3: " << pairs3 << "\n";
+  std::cout << "pairs3b: " << pairs3b << "\n";
+  std::cout << "pairs3c: " << pairs3c << "\n";
 }

@@ -32,7 +32,7 @@ COMMON=-g
 
 COMPILEOPT=-Wall -O3 -DCOMPO_ADJUSTMENT
 
-LIBS=-lpthread -lcomposition_adjustment -lxblast -lxncbi
+LIBS=-lpthread -lcomposition_adjustment -lxblast -lxncbi -L../swipe_LIBS/lib
 
 # Intel options
 #CXX=icpc
@@ -40,10 +40,19 @@ LIBS=-lpthread -lcomposition_adjustment -lxblast -lxncbi
 #LINKFLAGS=$(COMMON)
 
 # GNU options
-CXX=g++
-CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../ncbi-blast-2.2.29+-src/c++/src -I../ncbi-blast-2.2.29+-src/c++/include -I../ncbi-blast-2.2.29+-src/c++/DebugMT/inc -I../ncbi-blast-2.2.29+-src/c++/src/algo/blast/core
-LINKFLAGS=$(COMMON) -L../ncbi-blast-2.2.29+-src/c++/DebugMT/lib
+CXX=g++  # works with gcc/7.4.0
+#CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../ncbi-blast-2.2.29+-src/c++/src -I../ncbi-blast-2.2.29+-src/c++/include -I../ncbi-blast-2.2.29+-src/c++/DebugMT/inc -I../ncbi-blast-2.2.29+-src/c++/src/algo/blast/core
+# CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../ncbi_blast/ncbi-blast-2.13.0+-src/c++/src -I../ncbi_blast/ncbi-blast-2.13.0+-src/c++/include -I../ncbi_blast/ncbi-blast-2.13.0+-src/c++/src/algo/blast/core
+# CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/src -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/include -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/src/algo/blast/core
+# CXXFLAGS=$(COMPILEOPT) $(COMMON) -I/apps/ncbiblastplus/2.11.0/include/ncbi-tools++/ -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/src -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/src/algo/blast/core
 
+# works with newest available libraries
+CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../swipe_LIBS/ncbi-tools++/ -I../swipe_LIBS/src -I../swipe_LIBS/src/algo/blast/core
+
+# LINKFLAGS=$(COMMON) -L../ncbi-blast-2.2.29+-src/c++/DebugMT/lib
+LINKFLAGS=$(COMMON)# -L../ncbi-blast-2.2.29+-src/c++/DebugMT/lib
+
+# PROG=swipe # mpiswipe
 PROG=swipe # mpiswipe
 
 all : $(PROG)
@@ -61,7 +70,7 @@ DEPS = swipe.h Makefile
 .SUFFIXES:.o .cc
 
 swipe : swipe.o $(OBJS)
-	$(CXX) $(LINKFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) $(LINKFLAGS) -o $@ $^ $(LIBS) -g
 
 mpiswipe : mpiswipe.o $(OBJS)
 	$(CXX) $(LINKFLAGS) -o $@ $^ $(LIBS) $(MPI_LINK)

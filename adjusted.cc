@@ -129,7 +129,7 @@ int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *
       Blast_AdjustScores(sbp->matrix->data,
                          query_composition, query_length,
                          subject_composition, subject_length,
-                         scaledMatrixInfo, eCompositionMatrixAdjust,
+                         scaledMatrixInfo, eCompositionMatrixAdjust, //  scaledMatrixInfo, eCompositionMatrixAdjust, OR: scaledMatrixInfo, eCompositionBasedStats,
                          kReMatrixAdjustmentPseudocounts, NRrecord,
                          &matrix_adjust_rule, &s_CalcLambda,
                          &pvalueForThisPair,

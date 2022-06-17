@@ -23,6 +23,9 @@
     PO Box 1080 Blindern, NO-0316 Oslo, Norway
 */
 
+#include <iostream>
+#include <chrono>  // for high_resolution_clock
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
