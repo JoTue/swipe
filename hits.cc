@@ -40,7 +40,7 @@ long opt_alignments;
 long stats_available = 0;
 
 double alpha;
-double beta;
+double beta2;
 double lambda;
 double K;
 double H;
@@ -78,6 +78,11 @@ struct hits_entry
   long aligned;
   long indels;
   long flags;
+#ifdef SWLIB_8BIT
+  int8_t * mat;
+#else
+  int16_t * mat;
+#endif // SWLIB_8BIT
 } * hits_list;
 
 
@@ -256,6 +261,42 @@ void hits_gethit(long i, long * seqno, long * score,
   *dframe = h->dframe;
 }
 
+#ifdef SWLIB_8BIT
+void hits_enter_mat(long i, int8_t* mat, long aa_size)
+{
+  hits_list[i].mat = (int8_t*)calloc(aa_size*aa_size, sizeof(int8_t));
+  // hits_list[i].mat = (int8_t*) xmalloc(aa_size*aa_size*sizeof(int8_t));
+  memcpy(hits_list[i].mat, mat, aa_size*aa_size*sizeof(int8_t));
+}
+
+int8_t* hits_getmat(long i)
+{
+  return hits_list[i].mat;
+}
+#else
+void hits_enter_mat(long i, int16_t* mat, long aa_size)
+{
+  hits_list[i].mat = (int16_t*)calloc(aa_size*aa_size, sizeof(int16_t));
+  // hits_list[i].mat = (int16_t*) xmalloc(aa_size*aa_size*sizeof(int16_t));
+  memcpy(hits_list[i].mat, mat, aa_size*aa_size*sizeof(int16_t));
+}
+
+int16_t* hits_getmat(long i)
+{
+  return hits_list[i].mat;
+}
+#endif // SWLIB_8BIT
+
+char* hits_getseq(long i)
+{
+  return hits_list[i].dseq;
+}
+
+long hits_getdlen(long i)
+{
+  return hits_list[i].dlen;
+}
+
 void hits_enter_seq(long i, char* seq, long seq_len)
 {
   hits_list[i].dseq = (char*) xmalloc(seq_len);
@@ -394,13 +435,13 @@ void hits_init(long descriptions, long alignments, long minscore, long maxscore,
 			   & K,
 			   & H,
 			   & alpha,
-			   & beta))
+			   & beta2))
     {
       stats_available = 1;
 
       /*
-      fprintf(out, "Params: lambda=%6.3g K=%6.3g H=%6.3g alpha=%6.3g beta=%6.3g\n",
-	      lambda, K, H, alpha, beta);
+      fprintf(out, "Params: lambda=%6.3g K=%6.3g H=%6.3g alpha=%6.3g beta2=%6.3g\n",
+	      lambda, K, H, alpha, beta2);
       */
 
       logK = log(K);
@@ -420,7 +461,7 @@ void hits_init(long descriptions, long alignments, long minscore, long maxscore,
       BlastComputeLengthAdjustment(K,
 				   logK,
 				   alpha / lambda,
-				   beta,
+				   beta2,
 				   qlen,
 				   dlen,
 				   seqcount,
@@ -449,7 +490,7 @@ void hits_init(long descriptions, long alignments, long minscore, long maxscore,
 					& K,
 					& H,
 					& alpha,
-					& beta);
+					& beta2);
     }
     else
     {
@@ -460,7 +501,7 @@ void hits_init(long descriptions, long alignments, long minscore, long maxscore,
 					& K,
 					& H,
 					& alpha,
-					& beta);
+					& beta2);
     }
 
 
@@ -468,8 +509,8 @@ void hits_init(long descriptions, long alignments, long minscore, long maxscore,
     {
 
 #ifdef DEBUG
-      fprintf(out, "Params: lambda=%6.3g K=%6.3g H=%6.3g alpha=%6.3g beta=%6.3g\n",
-	      lambda, K, H, alpha, beta);
+      fprintf(out, "Params: lambda=%6.3g K=%6.3g H=%6.3g alpha=%6.3g beta2=%6.3g\n",
+	      lambda, K, H, alpha, beta2);
 #endif
 
       logK = log(K);
@@ -498,7 +539,7 @@ void hits_init(long descriptions, long alignments, long minscore, long maxscore,
       BlastComputeLengthAdjustment(K,
 				   logK,
 				   alpha / lambda,
-				   beta,
+				   beta2,
 				   qlen,
 				   dlen,
 				   seqcount,
@@ -569,6 +610,12 @@ void hits_empty()
       free(h->alignment);
       h->alignment = 0;
     }
+
+    // if (h->mat)
+    // {
+    //   free(h->mat);
+    //   h->mat = 0;
+    // }
   }
 }
 

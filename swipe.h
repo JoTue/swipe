@@ -417,6 +417,15 @@ void hits_getfull(long i,
 		  char ** align, long * align_len);
 void hits_enter_align_hint(long i, long q_end, long d_end);
 void hits_enter_header(long i, char * header, long header_len);
+#ifdef SWLIB_8BIT
+void hits_enter_mat(long i, int8_t* mat, long aa_size);
+int8_t* hits_getmat(long i);
+#else
+void hits_enter_mat(long i, int16_t* mat, long aa_size);
+int16_t* hits_getmat(long i);
+#endif // SWLIB_8BIT
+char* hits_getseq(long i);
+long hits_getdlen(long i);
 void hits_enter_seq(long hitno, char* buffer, long len);
 void hits_enter_align_coord(long i,
 			    long align_q_start,
@@ -480,7 +489,7 @@ static const int scaling_factor_BL62 = 32;
 void compo_init(const char *matrixName, BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo, int scaling_factor);
 void compo_done(BlastScoreBlk **sbp, Blast_MatrixInfo **scaledMatrixInfo);
 int compo_align(long *score_out, Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, int unmask, const Uint1 *data, int subject_length, long gapopen, long gapextend, int *matchStart, int *queryStart, int *matchEnd, int *queryEnd);
-int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, const Blast_AminoAcidComposition* query_composition, int query_length, const Blast_AminoAcidComposition* subject_composition, int subject_length);
+int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *sbp, Blast_MatrixInfo *scaledMatrixInfo, const Blast_AminoAcidComposition* query_composition, int query_length, const Blast_AminoAcidComposition* subject_composition, int subject_length, ECompoAdjustModes compo_adjust_mode, int stage, EMatrixAdjustRule *matrix_adjust_rule, double thresh_length, double thresh_distance, double thresh_angle);
 using namespace std;
 bool readFastaSequences(const char* dbFilePath, vector< vector<unsigned char> >* seqs);
 void hits_set_align_string(long hitno, char * align, long score_align);
@@ -489,6 +498,19 @@ void hits_enter_adjusted_score(long i, long score, long score_blast, long score_
 void count_align_matrix(long i, int64_t * score_matrix, const char *q_seq, long q_len, const char *d_seq, long d_len);
 void show_align(long i);
 //static bool preliminaryTestNearIdentical(int queryLength, int queryStart, int queryEnd, int matchStart, int matchEnd, int score, double cutoff);
+// count matrix_adjust_rule
+extern long mar2_0;
+extern long mar2_4;
+extern long mar2_other;
+extern long mar3_0;
+extern long mar3_4;
+extern long mar3_other;
+// db_composition functions
+void enter_subject(long seqno, Blast_AminoAcidComposition subject_composition, char *subject_sequence_masked, long subject_length);
+void get_subject_composition(long seqno, Blast_AminoAcidComposition* subject_composition);
+char* get_subject_sequence_masked(long seqno);
+void get_subject_length(long seqno, long* subject_length);
+void compute_subject_compositions();
 #endif // COMPO_ADJUSTMENT
 
 #include "blastkar_partial.h"

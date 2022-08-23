@@ -130,6 +130,8 @@ s_align* ssw_align (const s_profile* prof,
 					const int32_t filterd,
 					const int32_t maskLen);
 
+int ssw_align_main (const int8_t* query_sequence, const int8_t* subject_sequences[], long query_length, long subject_lengths[], int16_t * adjusted_matrices[], long gap_open, long gap_extension, long minscore2, long hits, int32_t n);
+
 typedef struct {
 	uint16_t score;
 	int32_t ref;	 //0-based position
@@ -162,6 +164,20 @@ alignment_end* sw_sse2_byte (const int8_t* ref,
 	 						 uint8_t bias,  /* Shift 0 point to a positive value. */
 							 int32_t maskLen,
 							 alignment_end* ae);
+
+alignment_end* sw_sse2_byte_NEW (const int8_t* ref,
+							 int8_t ref_dir,	// 0: forward ref; 1: reverse ref
+							 int32_t refLen,
+							 int32_t readLen,
+							 const uint8_t weight_gapO, /* will be used as - */
+							 const uint8_t weight_gapE, /* will be used as - */
+							 const __m128i* vProfile,
+							 uint8_t terminate,	/* the best alignment score: used to terminate
+												   the matrix calculation when locating the
+												   alignment beginning point. If this score
+												   is set to 0, it will not be used */
+	 						 uint8_t bias,  /* Shift 0 point to a positive value. */
+							 int32_t maskLen);
 
 void align_end_destroy (alignment_end* a);
 
