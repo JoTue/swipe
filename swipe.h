@@ -53,6 +53,7 @@
 #include <math.h>
 #include <x86intrin.h>
 #include <vector>
+#include <algorithm>
 
 #ifdef MPISWIPE
 #include <mpi.h>
@@ -506,9 +507,11 @@ extern long mar3_0;
 extern long mar3_4;
 extern long mar3_other;
 // db_composition functions
-void enter_subject(long seqno, Blast_AminoAcidComposition subject_composition, char *subject_sequence_masked, long subject_length);
+void enter_subject(long seqno, char *subject_sequence_masked, char *subject_sequence_unmasked, Blast_AminoAcidComposition subject_composition, Blast_AminoAcidComposition subject_composition_unmasked, long subject_length);
 void get_subject_composition(long seqno, Blast_AminoAcidComposition* subject_composition);
+void get_subject_composition_unmasked(long seqno, Blast_AminoAcidComposition* subject_composition_unmasked);
 char* get_subject_sequence_masked(long seqno);
+char* get_subject_sequence_unmasked(long seqno);
 void get_subject_length(long seqno, long* subject_length);
 void compute_subject_compositions();
 #endif // COMPO_ADJUSTMENT
