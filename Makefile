@@ -45,7 +45,7 @@ LIBS=-lpthread -lcomposition_adjustment -lxblast -lxncbi
 #LINKFLAGS=$(COMMON)
 
 # GNU options
-CXX=g++  # works with gcc/7.4.0
+CXX=g++  # works with newest version gcc/12.1.0
 #CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../ncbi-blast-2.2.29+-src/c++/src -I../ncbi-blast-2.2.29+-src/c++/include -I../ncbi-blast-2.2.29+-src/c++/DebugMT/inc -I../ncbi-blast-2.2.29+-src/c++/src/algo/blast/core
 # CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../ncbi_blast/ncbi-blast-2.13.0+-src/c++/src -I../ncbi_blast/ncbi-blast-2.13.0+-src/c++/include -I../ncbi_blast/ncbi-blast-2.13.0+-src/c++/src/algo/blast/core
 # CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/src -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/include -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/src/algo/blast/core
@@ -74,7 +74,7 @@ clean :
 OBJS = database.o asnparse.o align.o matrices.o \
 	stats.o hits.o query.o \
 	search63.o search16.o search16s.o search7.o search7_ssse3.o \
-        fasta.o adjusted.o ssw.c
+        fasta.o adjusted.o SSW/src/ssw.c
 
 DEPS = swipe.h Makefile
 

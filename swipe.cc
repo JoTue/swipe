@@ -26,7 +26,7 @@
 #define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
 
 #include "swipe.h"
-#include "ssw.h"
+#include "SSW/src/ssw.h"
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -93,6 +93,7 @@ long skipped_stage2 = 0;
 #define DEFAULT_THRESH_DISTANCE 0.16
 #define DEFAULT_THRESH_ANGLE 70.0
 #define DEFAULT_TEMPORARY_DIR ""
+#define DEFAULT_SSW_BINARY_DIR "/scratch/cube/tuechler/swipe/SSW/bin"
 #define DEFAULT_ALIGN_ADJUSTED_VERSION 4
 
 // #ifdef SWLIB_8BIT
@@ -139,6 +140,7 @@ double thresh_length;
 double thresh_distance;
 double thresh_angle;
 const char * temporary_dir;
+const char * ssw_binary_dir;
 long align_adjusted_version;
 
 /* Other variables */
@@ -1119,7 +1121,7 @@ void align_adjusted() {
     auto begin2_sw = std::chrono::high_resolution_clock::now();
     
     // bests = sw_sse2_byte_NEW((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen);
-    sw_sse2_byte((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
+    sw_sse2_byte2((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
     // result = ssw_align(p, (const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), subject_length, gap_open_extend, gap_extend, 0, 0, 0, maskLen);
     
     // time sw
@@ -1141,7 +1143,7 @@ void align_adjusted() {
     time_stage2_init += (end2_init - begin2_init).count();
     auto begin2_sw = std::chrono::high_resolution_clock::now();
     
-    sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
+    sw_sse2_word2((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
     // ERROR: result = ssw_align(p, (const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), subject_length, gap_open_extend, gap_extend, 0, 0, 0, maskLen);
     
     // time sw
@@ -1186,10 +1188,10 @@ void align_adjusted() {
 
 #ifdef SWLIB_8BIT
       p = ssw_init((const int8_t*)subject_sequence_unmasked, subject_length, mat8, BLASTAA_SIZE, 0);
-      sw_sse2_byte((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
+      sw_sse2_byte2((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
 #else
       p = ssw_init_word((const int8_t*)subject_sequence_unmasked, subject_length, mata, BLASTAA_SIZE);
-      sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
+      sw_sse2_word2((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
 #endif // SWLIB_8BIT
       if (p)
         init_destroy(p);
@@ -1240,7 +1242,7 @@ void align_adjusted() {
           adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
         }
       p = ssw_init_word((const int8_t*)query_sequence_unmasked, query_length, mata, BLASTAA_SIZE);
-      sw_sse2_word((const int8_t*)subject_sequence_unmasked, 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+      sw_sse2_word2((const int8_t*)subject_sequence_unmasked, 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
     
       if (p)
         init_destroy(p);
@@ -1282,7 +1284,7 @@ void align_adjusted() {
             adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
           }
         p = ssw_init_word((const int8_t*)subject_sequence_unmasked, subject_length, mata, BLASTAA_SIZE);
-        sw_sse2_word((const int8_t*)query_sequence_unmasked, 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+        sw_sse2_word2((const int8_t*)query_sequence_unmasked, 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
         if (p)
           init_destroy(p);
         result->score2 = ae.score;
@@ -1371,7 +1373,7 @@ void align_adjusted() {
           -- end;
         }
         __m128i* vP = qP_word16(read_reverse, mata, queryEnd + 1, p->n);
-        alignment_end* bests_reverse = sw_sse2_word((const int8_t*)subject_sequence, 1, matchEnd + 1, queryEnd + 1, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, vP, score_align, maskLen);
+        alignment_end* bests_reverse = sw_sse2_word2((const int8_t*)subject_sequence, 1, matchEnd + 1, queryEnd + 1, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, vP, score_align, maskLen);
         free(vP);
         matchStart = bests_reverse[0].ref;
         queryStart = queryEnd - bests_reverse[0].read;
@@ -1620,18 +1622,18 @@ void align_adjusted2() {
     // system("/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_byte_multimatrix2 -o 13 -e 2 -f 75 -p /scratch/cube/tuechler/swipe_swlib_test/db.fa /scratch/cube/tuechler/swipe_swlib_test/query.fa  >> /scratch/cube/tuechler/swipe_swlib_test/align_adjusted4_1");
     // system("/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/pyssw_multimatrix3.py -o 13 -e 2 -f 75 -p -l /scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/libssw.so /scratch/cube/tuechler/swipe_swlib_test/db.fa /scratch/cube/tuechler/swipe_swlib_test/query.fa /scratch/cube/tuechler/swipe_swlib_test/matrix.txt >> /scratch/cube/tuechler/swipe_swlib_test/align_adjusted4_2");
     
-    string system_str = "";
+    string system_str = ssw_binary_dir;
   #ifdef SWLIB_8BIT
     if (minScoreSWlib == 75) {
-      system_str +=  "/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_byte_multimatrix -o 15 -e 2 -f 75 -p ";
+      system_str +=  "/ssw_main_sw_sse2_byte_multimatrix -o 15 -e 2 -f 75 -p ";
     } else if (minScoreSWlib == 75*3) {
-      system_str +=  "/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_byte_multimatrix -o 45 -e 6 -f 225 -p ";
+      system_str +=  "/ssw_main_sw_sse2_byte_multimatrix -o 45 -e 6 -f 225 -p ";
     }
   #else
     if (minScoreSWlib == 75) {
-      system_str +=  "/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_word_multimatrix -o 15 -e 2 -f 75 -p ";
+      system_str +=  "/ssw_main_sw_sse2_word_multimatrix -o 15 -e 2 -f 75 -p ";
     } else if (minScoreSWlib == 75*32) {
-      system_str +=  "/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_word_multimatrix -o 480 -e 64 -f 2400 -p ";
+      system_str +=  "/ssw_main_sw_sse2_word_multimatrix -o 480 -e 64 -f 2400 -p ";
     }
   #endif // SWLIB_8BIT
     system_str += file_db_str;
@@ -1677,10 +1679,10 @@ void align_adjusted2() {
 
 // #ifdef SWLIB_8BIT
 //       p = ssw_init((const int8_t*)subject_sequence_unmasked, subject_length, mat8, BLASTAA_SIZE, 0);
-//       sw_sse2_byte((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
+//       sw_sse2_byte2((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
 // #else
 //       p = ssw_init_word((const int8_t*)subject_sequence_unmasked, subject_length, mata, BLASTAA_SIZE);
-//       sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
+//       sw_sse2_word2((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
 // #endif // SWLIB_8BIT
 //       if (p)
 //         init_destroy(p);
@@ -1735,7 +1737,7 @@ void align_adjusted2() {
           adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
         }
       p = ssw_init_word((const int8_t*)query_sequence_unmasked, query_length, mata, BLASTAA_SIZE);
-      sw_sse2_word((const int8_t*)subject_sequence_unmasked, 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+      sw_sse2_word2((const int8_t*)subject_sequence_unmasked, 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
     
       if (p)
         init_destroy(p);
@@ -1777,7 +1779,7 @@ void align_adjusted2() {
             adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
           }
         p = ssw_init_word((const int8_t*)subject_sequence_unmasked, subject_length, mata, BLASTAA_SIZE);
-        sw_sse2_word((const int8_t*)query_sequence_unmasked, 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+        sw_sse2_word2((const int8_t*)query_sequence_unmasked, 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
         if (p)
           init_destroy(p);
         result->score2 = ae.score;
@@ -1866,7 +1868,7 @@ void align_adjusted2() {
           -- end;
         }
         __m128i* vP = qP_word16(read_reverse, mata, queryEnd + 1, p->n);
-        alignment_end* bests_reverse = sw_sse2_word((const int8_t*)subject_sequence, 1, matchEnd + 1, queryEnd + 1, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, vP, score_align, maskLen);
+        alignment_end* bests_reverse = sw_sse2_word2((const int8_t*)subject_sequence, 1, matchEnd + 1, queryEnd + 1, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, vP, score_align, maskLen);
         free(vP);
         matchStart = bests_reverse[0].ref;
         queryStart = queryEnd - bests_reverse[0].read;
@@ -2205,7 +2207,7 @@ void align_adjusted3() {
     auto begin2_sw = std::chrono::high_resolution_clock::now();
     
     // bests = sw_sse2_byte_NEW((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen);
-    sw_sse2_byte((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
+    sw_sse2_byte2((const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
     // result = ssw_align(p, (const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), subject_length, gap_open_extend, gap_extend, 0, 0, 0, maskLen);
     
     // time sw
@@ -2227,7 +2229,7 @@ void align_adjusted3() {
     time_stage2_init += (end2_init - begin2_init).count();
     auto begin2_sw = std::chrono::high_resolution_clock::now();
     
-    sw_sse2_word(ref_num, 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
+    sw_sse2_word2(ref_num, 0, subject_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
     // ERROR: result = ssw_align(p, (const int8_t*)(mask == COMPOSITIONAL_MASK_NONE || mask == COMPOSITIONAL_MASK_BOTH_MATRIXONLY || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? subject_sequence_unmasked : subject_sequence_masked), subject_length, gap_open_extend, gap_extend, 0, 0, 0, maskLen);
     
     // time sw
@@ -2272,10 +2274,10 @@ void align_adjusted3() {
 
 #ifdef SWLIB_8BIT
       p = ssw_init((const int8_t*)subject_sequence_unmasked, subject_length, mat8, BLASTAA_SIZE, 0);
-      sw_sse2_byte((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
+      sw_sse2_byte2((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
 #else
       p = ssw_init_word((const int8_t*)subject_sequence_unmasked, subject_length, mata, BLASTAA_SIZE);
-      sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
+      sw_sse2_word2((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
 #endif // SWLIB_8BIT
       if (p)
         init_destroy(p);
@@ -2326,7 +2328,7 @@ void align_adjusted3() {
           adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
         }
       p = ssw_init_word((const int8_t*)query_sequence_unmasked, query_length, mata, BLASTAA_SIZE);
-      sw_sse2_word((const int8_t*)subject_sequence_unmasked, 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+      sw_sse2_word2((const int8_t*)subject_sequence_unmasked, 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
     
       if (p)
         init_destroy(p);
@@ -2368,7 +2370,7 @@ void align_adjusted3() {
             adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
           }
         p = ssw_init_word((const int8_t*)subject_sequence_unmasked, subject_length, mata, BLASTAA_SIZE);
-        sw_sse2_word((const int8_t*)query_sequence_unmasked, 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+        sw_sse2_word2((const int8_t*)query_sequence_unmasked, 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
         if (p)
           init_destroy(p);
         result->score2 = ae.score;
@@ -2457,7 +2459,7 @@ void align_adjusted3() {
           -- end;
         }
         __m128i* vP = qP_word16(read_reverse, mata, queryEnd + 1, p->n);
-        alignment_end* bests_reverse = sw_sse2_word((const int8_t*)subject_sequence, 1, matchEnd + 1, queryEnd + 1, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, vP, score_align, maskLen);
+        alignment_end* bests_reverse = sw_sse2_word2((const int8_t*)subject_sequence, 1, matchEnd + 1, queryEnd + 1, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, vP, score_align, maskLen);
         free(vP);
         matchStart = bests_reverse[0].ref;
         queryStart = queryEnd - bests_reverse[0].read;
@@ -2792,18 +2794,18 @@ void align_adjusted4() {
   
   string stage2_res_str(temporary_dir);
   stage2_res_str +=  "/stage2.res";
-  string system_str = "";
+  string system_str = ssw_binary_dir;
 #ifdef SWLIB_8BIT
   if (minScoreSWlib == 75) {
-    system_str +=  "/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_byte_multimatrix -o 15 -e 2 -f 75 -p ";
+    system_str +=  "/ssw_main_sw_sse2_byte_multimatrix -o 15 -e 2 -f 75 -p ";
   } else if (minScoreSWlib == 75*3) {
-    system_str +=  "/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_byte_multimatrix -o 45 -e 6 -f 225 -p ";
+    system_str +=  "/ssw_main_sw_sse2_byte_multimatrix -o 45 -e 6 -f 225 -p ";
   }
 #else
   if (minScoreSWlib == 75) {
-    system_str +=  "/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_word_multimatrix -o 15 -e 2 -f 75 -p ";
+    system_str +=  "/ssw_main_sw_sse2_word_multimatrix -o 15 -e 2 -f 75 -p ";
   } else if (minScoreSWlib == 75*32) {
-    system_str +=  "/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_word_multimatrix -o 480 -e 64 -f 2400 -p ";
+    system_str +=  "/ssw_main_sw_sse2_word_multimatrix -o 480 -e 64 -f 2400 -p ";
   }
 #endif // SWLIB_8BIT
   system_str += file_db_str;
@@ -2876,7 +2878,7 @@ void align_adjusted4() {
           adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
         }
       p = ssw_init_word((const int8_t*)query_sequence_unmasked, query_length, mata, BLASTAA_SIZE);
-      sw_sse2_word((const int8_t*)subject_sequence_unmasked, 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+      sw_sse2_word2((const int8_t*)subject_sequence_unmasked, 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
 
       if (p)
         init_destroy(p);
@@ -2918,7 +2920,7 @@ void align_adjusted4() {
             adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
           }
         p = ssw_init_word((const int8_t*)subject_sequence_unmasked, subject_length, mata, BLASTAA_SIZE);
-        sw_sse2_word((const int8_t*)query_sequence_unmasked, 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+        sw_sse2_word2((const int8_t*)query_sequence_unmasked, 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
         if (p)
           init_destroy(p);
         result->score2 = ae.score;
@@ -3007,7 +3009,7 @@ void align_adjusted4() {
           -- end;
         }
         __m128i* vP = qP_word16(read_reverse, mata, queryEnd + 1, p->n);
-        alignment_end* bests_reverse = sw_sse2_word((const int8_t*)subject_sequence, 1, matchEnd + 1, queryEnd + 1, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, vP, score_align, maskLen);
+        alignment_end* bests_reverse = sw_sse2_word2((const int8_t*)subject_sequence, 1, matchEnd + 1, queryEnd + 1, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, vP, score_align, maskLen);
         free(vP);
         matchStart = bests_reverse[0].ref;
         queryStart = queryEnd - bests_reverse[0].read;
@@ -3115,10 +3117,10 @@ void align_adjusted4() {
 
 // #ifdef SWLIB_8BIT
 //       p = ssw_init((const int8_t*)subject_sequence_unmasked, subject_length, mat8, BLASTAA_SIZE, 0);
-//       sw_sse2_byte((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
+//       sw_sse2_byte2((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_byte, minScoreSWlib, p->bias, maskLen, &ae);
 // #else
 //       p = ssw_init_word((const int8_t*)subject_sequence_unmasked, subject_length, mata, BLASTAA_SIZE);
-//       sw_sse2_word((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
+//       sw_sse2_word2((const int8_t*)(mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM ? query_sequence_unmasked : query_sequence_masked), 0, query_length, p->readLen, gap_open_extend, gap_extend, p->profile_word, minScoreSWlib, maskLen, &ae);
 // #endif // SWLIB_8BIT
 //       if (p)
 //         init_destroy(p);
@@ -3143,18 +3145,18 @@ void align_adjusted4() {
 
     string stage2_res_str(temporary_dir);
     stage2_res_str +=  "/stage2.res";
-    string system_str = "";
+    string system_str = ssw_binary_dir;
   #ifdef SWLIB_8BIT
     if (minScoreSWlib == 75) {
-      system_str +=  "/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_byte_multimatrix -o 15 -e 2 -f 75 -p ";
+      system_str +=  "/ssw_main_sw_sse2_byte_multimatrix -o 15 -e 2 -f 75 -p ";
     } else if (minScoreSWlib == 75*3) {
-      system_str +=  "/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_byte_multimatrix -o 45 -e 6 -f 225 -p ";
+      system_str +=  "/ssw_main_sw_sse2_byte_multimatrix -o 45 -e 6 -f 225 -p ";
     }
   #else
     if (minScoreSWlib == 75) {
-      system_str +=  "/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_word_multimatrix -o 15 -e 2 -f 75 -p ";
+      system_str +=  "/ssw_main_sw_sse2_word_multimatrix -o 15 -e 2 -f 75 -p ";
     } else if (minScoreSWlib == 75*32) {
-      system_str +=  "/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_word_multimatrix -o 480 -e 64 -f 2400 -p ";
+      system_str +=  "/ssw_main_sw_sse2_word_multimatrix -o 480 -e 64 -f 2400 -p ";
     }
   #endif // SWLIB_8BIT
     system_str += file_query_str;
@@ -3228,7 +3230,7 @@ void align_adjusted4() {
           }
         fprintf(stderr, "H\n");
         p = ssw_init_word((const int8_t*)query_sequence_unmasked, query_length, mata, BLASTAA_SIZE);
-        sw_sse2_word((const int8_t*)subject_sequence_unmasked, 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+        sw_sse2_word2((const int8_t*)subject_sequence_unmasked, 0, subject_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
 
         if (p)
           init_destroy(p);
@@ -3270,7 +3272,7 @@ void align_adjusted4() {
               adjusted_score_matrix_63_fullsw[(a<<5) + b] = sbpBL62->matrix->data[b][a];
             }
           p = ssw_init_word((const int8_t*)subject_sequence_unmasked, subject_length, mata, BLASTAA_SIZE);
-          sw_sse2_word((const int8_t*)query_sequence_unmasked, 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
+          sw_sse2_word2((const int8_t*)query_sequence_unmasked, 0, query_length, p->readLen, gapopenextend_BlastDef, gapextend_BlastDef, p->profile_word, 32767, maskLen, &ae);
           if (p)
             init_destroy(p);
           result->score2 = ae.score;
@@ -3359,7 +3361,7 @@ void align_adjusted4() {
             -- end;
           }
           __m128i* vP = qP_word16(read_reverse, mata, queryEnd + 1, p->n);
-          alignment_end* bests_reverse = sw_sse2_word((const int8_t*)subject_sequence, 1, matchEnd + 1, queryEnd + 1, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, vP, score_align, maskLen);
+          alignment_end* bests_reverse = sw_sse2_word2((const int8_t*)subject_sequence, 1, matchEnd + 1, queryEnd + 1, gapopen_BlastDef + gapextend_BlastDef, gapextend_BlastDef, vP, score_align, maskLen);
           free(vP);
           matchStart = bests_reverse[0].ref;
           queryStart = queryEnd - bests_reverse[0].read;
@@ -3608,6 +3610,7 @@ void args_usage()
   fprintf(out, "  -V, --thresh_distance=REAL  query_match_distance_threshold used in compo_mode_condition.c\n");
   fprintf(out, "  -W, --thresh_angle=REAL     angle_degree_threshold used in compo_mode_condition.c\n");
   fprintf(out, "  -t, --temporary_dir=DIR     temporary directory path\n");
+  fprintf(out, "  -w, --ssw_binary_dir=DIR    directory path of SSW binaries (ssw_main_sw_sse2_byte_multimatrix and ssw_main_sw_sse2_word_multimatrix)\n");
   fprintf(out, "  -R, --align_adjusted_version=NUM  align_adjusted_version (4)\n");
 }
 
@@ -3657,12 +3660,13 @@ void args_init(int argc, char **argv)
   thresh_distance = DEFAULT_THRESH_DISTANCE;
   thresh_angle = DEFAULT_THRESH_ANGLE;
   temporary_dir = DEFAULT_TEMPORARY_DIR;
+  ssw_binary_dir = DEFAULT_SSW_BINARY_DIR;
   align_adjusted_version = DEFAULT_ALIGN_ADJUSTED_VERSION;
 
   progname = argv[0];
 
   opterr = 1;
-  char short_options[] = "d:i:M:q:r:G:E:S:v:b:c:B:u:e:k:a:m:p:x:C:Q:D:F:K:N:o:z:A:X:U:V:W:t:R:IHhns::";
+  char short_options[] = "d:i:M:q:r:G:E:S:v:b:c:B:u:e:k:a:m:p:x:C:Q:D:F:K:N:o:z:A:X:U:V:W:t:w:R:IHhns::";
 
   static struct option long_options[] =
   {
@@ -3703,6 +3707,7 @@ void args_init(int argc, char **argv)
     {"thresh_distance",  required_argument, NULL, 'V' },
     {"thresh_angle",     required_argument, NULL, 'W' },
     {"temporary_dir",    required_argument, NULL, 't' },
+    {"ssw_binary_dir",   required_argument, NULL, 'w' },
     {"align_adjusted_version",    required_argument, NULL, 'R' },
     {"help",             no_argument,       NULL, 'h' },
     { 0, 0, 0, 0 }
@@ -3935,6 +3940,11 @@ void args_init(int argc, char **argv)
   case 't':
 	  /* temporary_dir */
 	  temporary_dir = optarg;
+	  break;
+
+  case 'w':
+	  /* ssw_binary_dir */
+	  ssw_binary_dir = optarg;
 	  break;
 
   case 'R':
