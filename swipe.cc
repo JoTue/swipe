@@ -1620,18 +1620,17 @@ void align_adjusted2() {
     
     string system_str = ssw_binary_dir;
   #ifdef SWLIB_8BIT
-    if (minScoreSWlib == 75) {
-      system_str +=  "/ssw_main_sw_sse2_byte_multimatrix -o 15 -e 2 -f 75 -p ";
-    } else if (minScoreSWlib == 75*3) {
-      system_str +=  "/ssw_main_sw_sse2_byte_multimatrix -o 45 -e 6 -f 225 -p ";
-    }
+    system_str +=  "/ssw_main_sw_sse2_byte_multimatrix";
   #else
-    if (minScoreSWlib == 75) {
-      system_str +=  "/ssw_main_sw_sse2_word_multimatrix -o 15 -e 2 -f 75 -p ";
-    } else if (minScoreSWlib == 75*32) {
-      system_str +=  "/ssw_main_sw_sse2_word_multimatrix -o 480 -e 64 -f 2400 -p ";
-    }
+    system_str +=  "/ssw_main_sw_sse2_word_multimatrix";
   #endif // SWLIB_8BIT
+    system_str += " -o ";
+    system_str += std::to_string(gap_open_extend);
+    system_str += " -e ";
+    system_str += std::to_string(gap_extend);
+    system_str += " -f ";
+    system_str += std::to_string(minScoreSWlib);
+    system_str += " -p ";
     system_str += file_db_str;
     system_str += " ";
     system_str += file_query_str;
@@ -2579,6 +2578,8 @@ void align_adjusted4() {
   string file_matrix_str(temporary_dir);
   file_matrix_str +=  "/matrix.txt";
   std::ofstream file_matrix(file_matrix_str);
+  string stage2_res_str(temporary_dir);
+  stage2_res_str +=  "/stage2.res";
   
   printf("stage2\n");
   auto begin2 = std::chrono::high_resolution_clock::now();
@@ -2788,22 +2789,19 @@ void align_adjusted4() {
   // system("/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/ssw_test_main_sw_sse2_byte_multimatrix2 -o 13 -e 2 -f 75 -p /scratch/cube/tuechler/swipe_swlib_test/db.fa /scratch/cube/tuechler/swipe_swlib_test/query.fa  >> /scratch/cube/tuechler/swipe_swlib_test/align_adjusted4_1");
   // system("/scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/pyssw_multimatrix3.py -o 13 -e 2 -f 75 -p -l /scratch/cube/tuechler/ssw/Complete-Striped-Smith-Waterman-Library/src2/libssw.so /scratch/cube/tuechler/swipe_swlib_test/db.fa /scratch/cube/tuechler/swipe_swlib_test/query.fa /scratch/cube/tuechler/swipe_swlib_test/matrix.txt >> /scratch/cube/tuechler/swipe_swlib_test/align_adjusted4_2");
   
-  string stage2_res_str(temporary_dir);
-  stage2_res_str +=  "/stage2.res";
   string system_str = ssw_binary_dir;
 #ifdef SWLIB_8BIT
-  if (minScoreSWlib == 75) {
-    system_str +=  "/ssw_main_sw_sse2_byte_multimatrix -o 15 -e 2 -f 75 -p ";
-  } else if (minScoreSWlib == 75*3) {
-    system_str +=  "/ssw_main_sw_sse2_byte_multimatrix -o 45 -e 6 -f 225 -p ";
-  }
+  system_str +=  "/ssw_main_sw_sse2_byte_multimatrix";
 #else
-  if (minScoreSWlib == 75) {
-    system_str +=  "/ssw_main_sw_sse2_word_multimatrix -o 15 -e 2 -f 75 -p ";
-  } else if (minScoreSWlib == 75*32) {
-    system_str +=  "/ssw_main_sw_sse2_word_multimatrix -o 480 -e 64 -f 2400 -p ";
-  }
+  system_str +=  "/ssw_main_sw_sse2_word_multimatrix";
 #endif // SWLIB_8BIT
+  system_str += " -o ";
+  system_str += std::to_string(gap_open_extend);
+  system_str += " -e ";
+  system_str += std::to_string(gap_extend);
+  system_str += " -f ";
+  system_str += std::to_string(minScoreSWlib);
+  system_str += " -p ";
   system_str += file_db_str;
   system_str += " ";
   system_str += file_query_str;
@@ -3139,22 +3137,19 @@ void align_adjusted4() {
 
     auto begin2f = std::chrono::high_resolution_clock::now();
 
-    string stage2_res_str(temporary_dir);
-    stage2_res_str +=  "/stage2.res";
     string system_str = ssw_binary_dir;
   #ifdef SWLIB_8BIT
-    if (minScoreSWlib == 75) {
-      system_str +=  "/ssw_main_sw_sse2_byte_multimatrix -o 15 -e 2 -f 75 -p ";
-    } else if (minScoreSWlib == 75*3) {
-      system_str +=  "/ssw_main_sw_sse2_byte_multimatrix -o 45 -e 6 -f 225 -p ";
-    }
+    system_str +=  "/ssw_main_sw_sse2_byte_multimatrix";
   #else
-    if (minScoreSWlib == 75) {
-      system_str +=  "/ssw_main_sw_sse2_word_multimatrix -o 15 -e 2 -f 75 -p ";
-    } else if (minScoreSWlib == 75*32) {
-      system_str +=  "/ssw_main_sw_sse2_word_multimatrix -o 480 -e 64 -f 2400 -p ";
-    }
+    system_str +=  "/ssw_main_sw_sse2_word_multimatrix";
   #endif // SWLIB_8BIT
+    system_str += " -o ";
+    system_str += std::to_string(gap_open_extend);
+    system_str += " -e ";
+    system_str += std::to_string(gap_extend);
+    system_str += " -f ";
+    system_str += std::to_string(minScoreSWlib);
+    system_str += " -p ";
     system_str += file_query_str;
     system_str += " ";
     system_str += file_db_str;
@@ -3163,6 +3158,7 @@ void align_adjusted4() {
     system_str += " > ";
     system_str +=  stage2_res_str;
     system(system_str.c_str());
+
 
     // time reverse alignment
     auto end2f = std::chrono::high_resolution_clock::now();
