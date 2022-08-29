@@ -108,7 +108,7 @@ inline void donormal16s(volatile __m128i * Sm,  /* r9  */
 			__m128i ** qp, /* rsi */
 			__m128i * Qm,  /* rdx */
 			__m128i * Rm,  /* rcx */
-			long ql,       /* r8  */
+			uintptr_t ql,  /* r8  */
 			__m128i * Zm)
 {
   __asm__
@@ -165,7 +165,7 @@ inline void domasked16s(volatile __m128i * Sm,
 			__m128i ** qp,
 			__m128i * Qm, 
 			__m128i * Rm, 
-			long ql,      
+			uintptr_t ql,
 			__m128i * Zm,
 			__m128i * Mm)
 {
@@ -324,7 +324,7 @@ void search16s(WORD * * q_start,
 
   long seq_id[CHANNELS];
   long next_id = 0;
-  unsigned done;
+  long done;
   
   Z = _mm_set_epi16(0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000);
   T0 = _mm_set_epi16(0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x8000);

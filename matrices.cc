@@ -25,7 +25,7 @@
 
 #include "swipe.h"
 
-const char mat_blosum45[] = 
+const char mat_blosum45[] =
 "# Entries for the BLOSUM45 matrix at a scale of ln(2)/3.0.\n\
    A  R  N  D  C  Q  E  G  H  I  L  K  M  F  P  S  T  W  Y  V  B  J  Z  X  *\n\
 A  5 -2 -1 -2 -1 -1 -1  0 -2 -1 -1 -1 -1 -2 -1  1  0 -2 -2  0 -1 -1 -1 -1 -5\n\
@@ -324,26 +324,27 @@ char BIAS;
 char * score_matrix_7 = NULL;
 char * score_matrix_7t = NULL;
 unsigned char * score_matrix_8 = NULL;
-short * score_matrix_16 = NULL;
-unsigned int * score_matrix_32 = NULL;
-long * score_matrix_63 = NULL;
+int16_t * score_matrix_16 = NULL;
+int32_t * score_matrix_32 = NULL;
+int64_t * score_matrix_63 = NULL;
 
 void score_matrix_dump()
 {
-  fprintf(out, "     ");
+  fprintf(out, "    ");
   for(int i=0; i<32; i++)
-    fprintf(out, "%2d", i);
+    fprintf(out, "%5d", i);
   fprintf(out, "\n");
-  fprintf(out, "     ");
+  fprintf(out, "    ");
   for(int i=0; i<32; i++)
-    fprintf(out, " %c", sym_ncbi_aa[i]);
+    fprintf(out, "    %c", sym_ncbi_aa[i]);
   fprintf(out, "\n");
   for(int i=0; i<32; i++)
   {
-    fprintf(out, "%2d %c ", i, sym_ncbi_aa[i]);
+    fprintf(out, "%2d %c", i, sym_ncbi_aa[i]);
     for(int j=0; j<32; j++)
       {
-	fprintf(out, "%2ld", score_matrix_63[(i<<5) + j]);
+//	fprintf(out, "%2I64d", score_matrix_63[(i<<5) + j]);
+	fprintf(out, "%5"PRId64, score_matrix_63[(i<<5) + j] == -32768 ? -1 : score_matrix_63[(i<<5) + j]);
       }
     fprintf(out, "\n");
   }
@@ -355,42 +356,42 @@ void score_matrix_read_file(const char * matrix)
   char order[LINE_MAX];
 
   int a, b, i, read, symbols;
-  long sc; 
+  long sc;
   char * map, * p, * q, c;
 
   FILE * fp = fopen(matrixname, "r");
 
   if (!fp)
     fatal("Cannot open score matrix file.");
-  
+
   if (symtype == 5)
     map = map_sound;
   else
     map = map_ncbi_aa;
-  
+
   symbols = 0;
 
   while(fgets(line, LINE_MAX, fp) != NULL)
     {
       p = line;
       c = *p++;
-      
+
       switch(c)
 	{
-	  
+
 	case '\n':
 	case '#':
-	  
+
 	  /* ignore blank lines and comments starting with # */
-	  
+
 	  break;
-	
+
 	case '\t':
-	  
+
 	case ' ':
-	  
+
 	  /* read order of symbols, copy non-whitespace chars */
-	  
+
 	  q = order;
 
 	  while ((c = *p++))
@@ -401,28 +402,28 @@ void score_matrix_read_file(const char * matrix)
 	      }
 
 	  break;
-	  
+
 	default:
 
 	  /* ordinary lines */
-	  
+
 	  a = map[(int)c];
 	  for (i=0; i<symbols; i++)
 	    {
 	      if (sscanf(p, "%ld%n", & sc, & read) == 0)
 		fatal("Problem parsing score matrix file.");
-	  
+
 	      b = order[i];
-	  
+
 	      if ((a>=0) && (b>=0) && (a<32) && (b<32))
 		score_matrix_63[(a<<5) + b] = sc;
-	  
+
 	      p += read;
 	    }
 	  break;
 	}
     }
-    
+
   fclose(fp);
 }
 
@@ -432,19 +433,19 @@ void score_matrix_read_string(const char * matrix)
   char order[LINE_MAX];
 
   int a, b, i, read, symbols;
-  long sc; 
+  long sc;
   char * map, * p, * q, c;
 
   char * s = (char*) matrix;
 
   if (!s)
     fatal("Cannot read score matrix string.");
-  
+
   if (symtype == 5)
     map = map_sound;
   else
     map = map_ncbi_aa;
-  
+
   symbols = 0;
 
   while(*s)
@@ -455,28 +456,28 @@ void score_matrix_read_string(const char * matrix)
 	linelen = nextline - s;
       else
 	linelen = strlen(s);
-      
+
       strncpy(line, s, linelen);
       line[linelen] = 0;
 
       p = line;
       c = *p++;
-      
+
       switch(c)
 	{
-	  
+
 	case '\n':
 	case '#':
-	  
+
 	  /* ignore blank lines and comments starting with # */
-	  
+
 	  break;
-	
+
 	case '\t':
 	case ' ':
-	  
+
 	  /* read order of symbols, copy non-whitespace chars */
-	  
+
 	  q = order;
 
 	  while ((c = *p++))
@@ -487,22 +488,22 @@ void score_matrix_read_string(const char * matrix)
 	      }
 
 	  break;
-	  
+
 	default:
 
 	  /* ordinary lines */
-	  
+
 	  a = map[(int)c];
 	  for (i=0; i<symbols; i++)
 	    {
 	      if (sscanf(p, "%ld%n", & sc, & read) == 0)
 		fatal("Problem parsing score matrix file.");
-	  
+
 	      b = order[i];
-	  
+
 	      if ((a>=0) && (b>=0) && (a<32) && (b<32))
 		score_matrix_63[(a<<5) + b] = sc;
-	  
+
 	      p += read;
 	    }
 	  break;
@@ -520,16 +521,16 @@ void score_matrix_read_string(const char * matrix)
 void score_matrix_read()
 {
   int a, b;
-  long sc, lo, hi; 
-  
+  long sc, lo, hi;
+
   score_matrix_7 = (char *) xmalloc(32*32*sizeof(char));
   score_matrix_7t = (char *) xmalloc(32*32*sizeof(char));
   score_matrix_8 = (unsigned char *) xmalloc(32*32*sizeof(char));
-  score_matrix_16 = (short *) xmalloc(32*32*sizeof(short));
-  score_matrix_32 = (unsigned int *) xmalloc(32*32*sizeof(unsigned int));
-  score_matrix_63 = (long *) xmalloc(32*32*sizeof(long));
+  score_matrix_16 = (int16_t *) xmalloc(32*32*sizeof(int16_t));
+  score_matrix_32 = (int32_t *) xmalloc(32*32*sizeof(int32_t));
+  score_matrix_63 = (int64_t *) xmalloc(32*32*sizeof(int64_t));
   memset(score_matrix_63, -1, 32*32*8);
-  
+
   if (symtype == 0)
   {
     for(a=1;a<16;a++)
@@ -569,19 +570,18 @@ void score_matrix_read()
 	if (sc > hi)
 	  hi = sc;
       }
-  
+
 
   BIAS = - lo;
   SCORELIMIT_7  = 128 - hi;
   SCORELIMIT_8  = 256 - hi;
   SCORELIMIT_16 = 65536 - hi;
   SCORELIMIT_32 = 4294967296 - hi;
-  
+
   for(a=0;a<32;a++)
     for(b=0;b<32;b++)
     {
       sc = score_matrix_63[(a<<5) + b];
-      
       score_matrix_7 [(a<<5) + b] = (char) sc;
       score_matrix_7t[(b<<5) + a] = (char) sc;
       score_matrix_8 [(a<<5) + b] = (unsigned char) (BIAS + sc);

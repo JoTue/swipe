@@ -18,8 +18,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-    Contact: Torbjorn Rognes <torognes@ifi.uio.no>, 
-    Department of Informatics, University of Oslo, 
+    Contact: Torbjorn Rognes <torognes@ifi.uio.no>,
+    Department of Informatics, University of Oslo,
     PO Box 1080 Blindern, NO-0316 Oslo, Norway
 */
 
@@ -40,7 +40,7 @@ long opt_alignments;
 long stats_available = 0;
 
 double alpha;
-double beta;
+double beta2;
 double lambda;
 double K;
 double H;
@@ -63,6 +63,8 @@ struct hits_entry
   long dlennt;
   long score;
   long score_align;
+  long score_adjusted;  // probably scaled by scaling_factor
+  long score_adjusted_blast, score_adjusted_blast_rev;  // probably scaled by scaling_factor
   long align_hint;
   long bestq;
   long align_q_start;
@@ -70,6 +72,17 @@ struct hits_entry
   long align_d_start;
   long align_d_end;
   long header_length;
+  long identities;
+  long positives;
+  long gaps;
+  long aligned;
+  long indels;
+  long flags;
+#ifdef SWLIB_8BIT
+  int8_t * mat;
+#else
+  int16_t * mat;
+#endif // SWLIB_8BIT
 } * hits_list;
 
 
@@ -79,7 +92,7 @@ int hits_compare(const void * a, const void * b)
 {
   struct hits_entry * ap = hits_list + *((long *) a);
   struct hits_entry * bp = hits_list + *((long *) b);
-  
+
   if ( (*((long*)a) >= opt_alignments) < (*((long*)b) >= opt_alignments) )
   {
     return -1;
@@ -135,10 +148,10 @@ int hits_compare(const void * a, const void * b)
 long * hits_sort()
 {
   long * hits_sorted = (long *) xmalloc(hits_count * sizeof(long));
-  
+
   for(long i=0; i<hits_count; i++)
     hits_sorted[i] = i;
-  
+
   qsort(hits_sorted, hits_count, sizeof(long), hits_compare);
 
 #if 0
@@ -147,7 +160,7 @@ long * hits_sort()
   for(long i=0; i<hits_count; i++)
   {
     struct hits_entry * h = hits_list + hits_sorted[i];
-    fprintf(out, "%5ld %5ld %3ld %8ld %ld %ld %ld %ld %5ld\n", 
+    fprintf(out, "%5ld %5ld %3ld %8ld %ld %ld %ld %ld %5ld\n",
 	    h - hits_list + 1,
 	    i+1,
 	    db_getvolume(h->seqno),
@@ -159,21 +172,29 @@ long * hits_sort()
   return hits_sorted;
 }
 
-
 void hits_enter(long seqno, long score, long qstrand, long qframe,
 		long dstrand, long dframe, long align_hint, long bestq)
 {
-  // show_progress();
-
-  //  fprintf(out, "Entering score %u from sequence no %u.\n", score, seqno);
-  
-  // find correct place
-
   pthread_mutex_lock(&hitsmutex);
 
+  if (hits_count < keephits) {
+    hits_list[hits_count].seqno = seqno;
+    hits_list[hits_count].qstrand = qstrand;
+    hits_list[hits_count].qframe = qframe;
+    hits_list[hits_count].dstrand = dstrand;
+    hits_list[hits_count].dframe = dframe;
+    hits_list[hits_count].score = score;
+    hits_list[hits_count].align_hint = align_hint;
+    hits_list[hits_count].bestq = bestq;
+    hits_count++;
+    totalhits++;
+  }
+  pthread_mutex_unlock(&hitsmutex);
+
+/*
   if (score > upperscorethreshold)
     obvious++;
-  
+
   if (score >= init_threshold)
     totalhits++;
 
@@ -185,20 +206,20 @@ void hits_enter(long seqno, long score, long qstrand, long qframe,
 
   long place = hits_count;
 
-  while ((place > 0) && ((score > hits_list[place-1].score) || 
-			 ((score == hits_list[place-1].score) && 
+  while ((place > 0) && ((score > hits_list[place-1].score) ||
+			 ((score == hits_list[place-1].score) &&
 			  (seqno > hits_list[place-1].seqno))))
     place--;
-  
+
   // move entries down
-  
+
   long move = (hits_count < keephits ? hits_count : keephits - 1) - place;
 
   //  fprintf(out, "Inserting at place %d, moving %d.\n", place, move);
 
   for (long j=move; j>0; j--)
     hits_list[place+j] = hits_list[place+j-1];
-  
+
   // fill new entry
 
   if (place < keephits)
@@ -214,11 +235,12 @@ void hits_enter(long seqno, long score, long qstrand, long qframe,
     if (hits_count < keephits)
       hits_count++;
   }
-  
+
   if (hits_count == keephits)
     scorethreshold = hits_list[keephits-1].score;
-  
+
   pthread_mutex_unlock(&hitsmutex);
+  */
 }
 
 long hits_getcount()
@@ -226,7 +248,7 @@ long hits_getcount()
   return hits_count;
 }
 
-void hits_gethit(long i, long * seqno, long * score, 
+void hits_gethit(long i, long * seqno, long * score,
 		 long * qstrand, long * qframe,
 		 long * dstrand, long * dframe)
 {
@@ -237,6 +259,42 @@ void hits_gethit(long i, long * seqno, long * score,
   *qframe = h->qframe;
   *dstrand = h->dstrand;
   *dframe = h->dframe;
+}
+
+#ifdef SWLIB_8BIT
+void hits_enter_mat(long i, int8_t* mat, long aa_size)
+{
+  hits_list[i].mat = (int8_t*)calloc(aa_size*aa_size, sizeof(int8_t));
+  // hits_list[i].mat = (int8_t*) xmalloc(aa_size*aa_size*sizeof(int8_t));
+  memcpy(hits_list[i].mat, mat, aa_size*aa_size*sizeof(int8_t));
+}
+
+int8_t* hits_getmat(long i)
+{
+  return hits_list[i].mat;
+}
+#else
+void hits_enter_mat(long i, int16_t* mat, long aa_size)
+{
+  hits_list[i].mat = (int16_t*)calloc(aa_size*aa_size, sizeof(int16_t));
+  // hits_list[i].mat = (int16_t*) xmalloc(aa_size*aa_size*sizeof(int16_t));
+  memcpy(hits_list[i].mat, mat, aa_size*aa_size*sizeof(int16_t));
+}
+
+int16_t* hits_getmat(long i)
+{
+  return hits_list[i].mat;
+}
+#endif // SWLIB_8BIT
+
+char* hits_getseq(long i)
+{
+  return hits_list[i].dseq;
+}
+
+long hits_getdlen(long i)
+{
+  return hits_list[i].dlen;
 }
 
 void hits_enter_seq(long i, char* seq, long seq_len)
@@ -250,6 +308,19 @@ void hits_enter_align_hint(long i, long q_end, long d_end)
 {
   hits_list[i].bestq = q_end;
   hits_list[i].align_hint = d_end;
+}
+
+void hits_enter_adjusted_score(long i, long score, long score_blast, long score_blast_rev, long flags)
+{
+  hits_list[i].score_adjusted = score;
+  hits_list[i].score_adjusted_blast = score_blast;
+  hits_list[i].score_adjusted_blast_rev = score_blast_rev;
+  hits_list[i].flags = flags;
+}
+
+void hits_enter_score(long i, long score)
+{
+    hits_list[i].score = score;
 }
 
 void hits_enter_align_coord(long i,
@@ -278,6 +349,12 @@ void hits_enter_align_string(long i, char * align, long align_len)
   hits_list[i].alignment = (char*) xmalloc(align_len);
   memcpy(hits_list[i].alignment, align, align_len);
   //  hits_list[i].alignment[align_len] = 0;
+}
+
+void hits_set_align_string(long i, char * align, long score_align)
+{
+  hits_list[i].alignment = align;
+  hits_list[i].score_align = score_align;
 }
 
 void hits_init(long descriptions, long alignments, long minscore, long maxscore, double minexpect, double expect, int show_nostats)
@@ -358,21 +435,21 @@ void hits_init(long descriptions, long alignments, long minscore, long maxscore,
 			   & K,
 			   & H,
 			   & alpha,
-			   & beta))
+			   & beta2))
     {
       stats_available = 1;
 
       /*
-      fprintf(out, "Params: lambda=%6.3g K=%6.3g H=%6.3g alpha=%6.3g beta=%6.3g\n",
-	      lambda, K, H, alpha, beta);
+      fprintf(out, "Params: lambda=%6.3g K=%6.3g H=%6.3g alpha=%6.3g beta2=%6.3g\n",
+	      lambda, K, H, alpha, beta2);
       */
 
       logK = log(K);
       lambda_d_log2 = lambda / log(2.0);
       logK_d_log2 = logK / log(2.0);
-      
+
       lenadj = 0;
-      
+
       long qlen = query.nt[0].len;
 
       long dlen;
@@ -384,12 +461,12 @@ void hits_init(long descriptions, long alignments, long minscore, long maxscore,
       BlastComputeLengthAdjustment(K,
 				   logK,
 				   alpha / lambda,
-				   beta,
+				   beta2,
 				   qlen,
 				   dlen,
 				   seqcount,
 				   & lenadj);
-    
+
       //      fprintf(out, "lenadj: %d\n", lenadj);
 
       m = qlen - lenadj;
@@ -413,7 +490,7 @@ void hits_init(long descriptions, long alignments, long minscore, long maxscore,
 					& K,
 					& H,
 					& alpha,
-					& beta);
+					& beta2);
     }
     else
     {
@@ -424,24 +501,24 @@ void hits_init(long descriptions, long alignments, long minscore, long maxscore,
 					& K,
 					& H,
 					& alpha,
-					& beta);
+					& beta2);
     }
 
 
     if (stats_available)
     {
-      
+
 #ifdef DEBUG
-      fprintf(out, "Params: lambda=%6.3g K=%6.3g H=%6.3g alpha=%6.3g beta=%6.3g\n",
-	      lambda, K, H, alpha, beta);
+      fprintf(out, "Params: lambda=%6.3g K=%6.3g H=%6.3g alpha=%6.3g beta2=%6.3g\n",
+	      lambda, K, H, alpha, beta2);
 #endif
 
       logK = log(K);
       lambda_d_log2 = lambda / log(2.0);
       logK_d_log2 = logK / log(2.0);
-      
+
       lenadj = 0;
-      
+
       long qlen = query.aa[0].len;
       if ((symtype == 2) || (symtype == 4))
 	qlen = query.nt[0].len / 3;
@@ -462,7 +539,7 @@ void hits_init(long descriptions, long alignments, long minscore, long maxscore,
       BlastComputeLengthAdjustment(K,
 				   logK,
 				   alpha / lambda,
-				   beta,
+				   beta2,
 				   qlen,
 				   dlen,
 				   seqcount,
@@ -485,13 +562,13 @@ void hits_init(long descriptions, long alignments, long minscore, long maxscore,
 
   scorethreshold = minscore;
   upperscorethreshold = maxscore;
-  
+
   if (stats_available)
   {
     long minscore_expect = (long)(ceil(- log(expect / Kmn) / lambda));
     if (minscore_expect > minscore)
       scorethreshold = minscore_expect;
-    
+
     if (minexpect > 0.0)
     {
       long maxscore_expect = (long)(floor(- log(minexpect / Kmn) / lambda));
@@ -521,7 +598,7 @@ void hits_empty()
       free(h->header_address);
       h->header_address = 0;
     }
-    
+
     if (h->dseq)
     {
       free(h->dseq);
@@ -533,6 +610,12 @@ void hits_empty()
       free(h->alignment);
       h->alignment = 0;
     }
+
+    // if (h->mat)
+    // {
+    //   free(h->mat);
+    //   h->mat = 0;
+    // }
   }
 }
 
@@ -560,7 +643,7 @@ void hits_align(struct db_thread_s * t, long i)
   if (i < opt_alignments)
   {
     db_mapsequences(t, h->seqno, h->seqno);
-    
+
     db_getsequence(t, h->seqno, h->dstrand, h->dframe,
 		   & address, & length, & ntlen, 0);
     h->dlen = length - 1;
@@ -568,7 +651,7 @@ void hits_align(struct db_thread_s * t, long i)
 
     h->dseq = (char*)xmalloc(h->dlen);
     memcpy(h->dseq, address, h->dlen);
-    
+
     char * qseq;
     long qlen;
     if (symtype == 0)
@@ -590,7 +673,7 @@ void hits_align(struct db_thread_s * t, long i)
       h->align_q_end = h->bestq;
       h->align_d_end = h->align_hint;
 #if 0
-      printf("Align with hints: score=%ld, q_end=%ld, d_end=%ld\n", 
+      printf("Align with hints: score=%ld, q_end=%ld, d_end=%ld\n",
 	     h->score_align, h->align_q_end, h->align_d_end);
 #endif
     }
@@ -616,7 +699,6 @@ void hits_align(struct db_thread_s * t, long i)
 	  & h->score_align);
   }
 }
-
 
 #define ALIGNLEN 60
 long line_pos;
@@ -671,7 +753,7 @@ void putalignop(char c, long len)
       }
       else
       {
-	a_line[line_pos] = (qs == ds) ? sym[(int)(qs)] : 
+	a_line[line_pos] = (qs == ds) ? sym[(int)(qs)] :
 	  (score_matrix_63[32*qs+ds] > 0 ? '+' : ' ');
       }
       d_line[line_pos] = sym[(int)(ds)];
@@ -731,7 +813,7 @@ void putalignop(char c, long len)
 	  q2 = 3*q_pos + q_frame;
 	}
       }
-      
+
       if ((symtype == 3) || (symtype == 4))
       {
 	if (d_strand)
@@ -768,7 +850,7 @@ void show_align(long i)
   d_strand = hits_list[i].dstrand;
   d_frame = hits_list[i].dframe;
   char * alignment = hits_list[i].alignment;
-  
+
   if (symtype == 0)
   {
     sym = sym_ncbi_nt16;
@@ -784,7 +866,8 @@ void show_align(long i)
   else
   {
     sym = sym_ncbi_aa;
-    q_seq = query.aa[3*q_strand+q_frame].seq;
+//    q_seq = query.aa[3*q_strand+q_frame].seq;
+    q_seq = (mask ? query.aa[3*q_strand+q_frame].seq_unmasked : query.aa[3*q_strand+q_frame].seq);
     q_len = query.aa[3*q_strand+q_frame].len;
     q_len_nt = query.nt[0].len;
     d_len_nt = hits_list[i].dlennt;
@@ -792,13 +875,13 @@ void show_align(long i)
 
   d_seq = hits_list[i].dseq;
   d_len = hits_list[i].dlen;
-  
+
   q_pos = q_align_start;
   d_pos = d_align_start;
-  
+
   char * p = alignment;
   char * e = alignment + strlen(alignment);
-  
+
   while(p < e)
   {
     char op = *p++;
@@ -808,7 +891,7 @@ void show_align(long i)
     p += n;
     putalignop(op, len);
   }
-  
+
   putalignop(0, 1);
 }
 
@@ -850,7 +933,7 @@ void whole_align(long i,
   d_frame = hits_list[i].dframe;
   q_strand = hits_list[i].qstrand;
   q_frame = hits_list[i].qframe;
-  
+
   if (symtype == 0)
   {
     sym = sym_ncbi_nt16;
@@ -877,13 +960,13 @@ void whole_align(long i,
   *indels = 0;
   *gaps = 0;
   *aligned = 0;
-  
+
   d_seq = hits_list[i].dseq;
   d_len = hits_list[i].dlen;
-  
+
   q_pos = q_align_start;
   d_pos = d_align_start;
-  
+
   p = alignment;
 
   while(*p)
@@ -893,7 +976,7 @@ void whole_align(long i,
     int n;
     sscanf(p, "%ld%n", & len, & n);
     p += n;
-    
+
     *aligned += len;
     if (op == 'D')
     {
@@ -958,7 +1041,7 @@ void whole_align(long i,
   q_last = hits_list[i].align_q_end;
   d_first = hits_list[i].align_d_start;
   d_last = hits_list[i].align_d_end;
-  
+
   if (symtype == 0)
   {
     if (q_strand)
@@ -973,7 +1056,7 @@ void whole_align(long i,
       d_last = d_len - 1 - d_last;
     }
   }
-  
+
   if ((symtype == 2) || (symtype == 4))
   {
     if (q_strand)
@@ -987,7 +1070,7 @@ void whole_align(long i,
       q_last = 3 * q_last + q_frame + 2;
     }
   }
-  
+
   if ((symtype == 3) || (symtype == 4))
   {
     if (d_strand)
@@ -1007,8 +1090,84 @@ void whole_align(long i,
   d_first++;
   d_last++;
 
-  long maxqpos = q_first > q_last ? q_first : q_last; 
-  long maxdpos = d_first > d_last ? d_first : d_last; 
+  long maxqpos = q_first > q_last ? q_first : q_last;
+  long maxdpos = d_first > d_last ? d_first : d_last;
+  long maxpos = maxqpos > maxdpos ? maxqpos : maxdpos;
+  poswidth = 1;
+  while (maxpos > 9)
+  {
+    maxpos /= 10;
+    poswidth++;
+  }
+}
+
+void count_align_matrix(long i, int64_t * score_matrix, const char *q_seq, long q_len, const char *d_seq, long d_len) {
+  char * alignment = hits_list[i].alignment;
+
+  hits_list[i].identities = 0;
+  hits_list[i].positives = 0;
+  hits_list[i].indels = 0;
+  hits_list[i].gaps = 0;
+  hits_list[i].aligned = 0;
+
+  q_pos = hits_list[i].align_q_start;
+  d_pos = hits_list[i].align_d_start;
+
+  char * p = alignment;
+  char * e = alignment + strlen(alignment);
+
+  while(p < e)
+  {
+    char op = *p++;
+    long len;
+    int n;
+    sscanf(p, "%ld%n", & len, & n);
+    p += n;
+
+    hits_list[i].aligned += len;
+    if (op == 'D')
+    {
+      hits_list[i].gaps += 1;
+      hits_list[i].indels += len;
+      q_pos += len;
+    }
+    else if (op == 'I')
+    {
+      hits_list[i].gaps += 1;
+      hits_list[i].indels += len;
+      d_pos += len;
+    }
+    else
+    {
+      for(long j=0; j<len; j++)
+      {
+	char qs = q_seq[q_pos++];
+	char ds = d_seq[d_pos++];
+	if (qs == ds)
+	{
+	  (hits_list[i].identities)++;
+	  (hits_list[i].positives)++;
+	}
+	else if (score_matrix[32*qs+ds] > 0)
+	  (hits_list[i].positives)++;
+      }
+    }
+  }
+
+  /* calculate first and last alignment positions for display */
+
+  q_first = hits_list[i].align_q_start;
+  q_last = hits_list[i].align_q_end;
+  d_first = hits_list[i].align_d_start;
+  d_last = hits_list[i].align_d_end;
+
+  q_first++;
+  q_last++;
+  d_first++;
+  d_last++;
+
+  long maxqpos = q_first > q_last ? q_first : q_last;
+  long maxdpos = d_first > d_last ? d_first : d_last;
   long maxpos = maxqpos > maxdpos ? maxqpos : maxdpos;
   poswidth = 1;
   while (maxpos > 9)
@@ -1033,7 +1192,7 @@ void count_align(long i,
   d_frame = hits_list[i].dframe;
   q_strand = hits_list[i].qstrand;
   q_frame = hits_list[i].qframe;
-  
+
   if (symtype == 0)
   {
     sym = sym_ncbi_nt16;
@@ -1049,7 +1208,8 @@ void count_align(long i,
   else
   {
     sym = sym_ncbi_aa;
-    q_seq = query.aa[3*q_strand+q_frame].seq;
+    //q_seq = query.aa[3*q_strand+q_frame].seq;
+    q_seq = (mask ? query.aa[3*q_strand+q_frame].seq_unmasked : query.aa[3*q_strand+q_frame].seq);
     q_len = query.aa[3*q_strand+q_frame].len;
     q_len_nt = query.nt[0].len;
     d_len_nt = hits_list[i].dlennt;
@@ -1060,13 +1220,13 @@ void count_align(long i,
   *indels = 0;
   *gaps = 0;
   *aligned = 0;
-  
+
   d_seq = hits_list[i].dseq;
   d_len = hits_list[i].dlen;
-  
+
   q_pos = q_align_start;
   d_pos = d_align_start;
-  
+
   char * p = alignment;
   char * e = alignment + strlen(alignment);
 
@@ -1077,7 +1237,7 @@ void count_align(long i,
     int n;
     sscanf(p, "%ld%n", & len, & n);
     p += n;
-    
+
     *aligned += len;
     if (op == 'D')
     {
@@ -1114,7 +1274,7 @@ void count_align(long i,
   q_last = hits_list[i].align_q_end;
   d_first = hits_list[i].align_d_start;
   d_last = hits_list[i].align_d_end;
-  
+
   if (symtype == 0)
   {
     if (q_strand)
@@ -1129,7 +1289,7 @@ void count_align(long i,
       d_last = d_len - 1 - d_last;
     }
   }
-  
+
   if ((symtype == 2) || (symtype == 4))
   {
     if (q_strand)
@@ -1143,7 +1303,7 @@ void count_align(long i,
       q_last = 3 * q_last + q_frame + 2;
     }
   }
-  
+
   if ((symtype == 3) || (symtype == 4))
   {
     if (d_strand)
@@ -1163,8 +1323,8 @@ void count_align(long i,
   d_first++;
   d_last++;
 
-  long maxqpos = q_first > q_last ? q_first : q_last; 
-  long maxdpos = d_first > d_last ? d_first : d_last; 
+  long maxqpos = q_first > q_last ? q_first : q_last;
+  long maxdpos = d_first > d_last ? d_first : d_last;
   long maxpos = maxqpos > maxdpos ? maxqpos : maxdpos;
   poswidth = 1;
   while (maxpos > 9)
@@ -1253,9 +1413,9 @@ void make_anchor(char * anchor, long size, long symtype, long queryno, long i)
   }
 }
 
-void hits_defline_split(char * defline, 
+void hits_defline_split(char * defline,
 			long * gi,
-			char ** link, int * linklen, 
+			char ** link, int * linklen,
 			char ** rest)
 {
   char * p = defline;
@@ -1264,15 +1424,15 @@ void hits_defline_split(char * defline,
   *link = 0;
   *linklen = 0;
   *rest = 0;
-  
+
   int m = sscanf(p, "gi|%ld%n", gi, & len);
   if (m > 0)
     //  if (len > 0)
     p += len;
-  
+
   if (*p == '|')
     p++;
-  
+
   char * r = strchr(p, ' ');
   if (r)
   {
@@ -1291,9 +1451,9 @@ void hits_show_xml_paralign(long showalignments,
 			    struct db_thread_s * t)
 {
   /* ParAlign XML */
-  
+
   fprintf(out, "\t<paralignOutput>\n");
-  
+
   const char * qseqtypedescr;
   struct sequence q;
   if ((query.symtype == 1) || (query.symtype == 3))
@@ -1306,7 +1466,7 @@ void hits_show_xml_paralign(long showalignments,
     qseqtypedescr = "Nucleotide";
     q = query.nt[0];
   }
-  
+
   fprintf(out, "\t\t<queryInformation>\n");
   fprintf(out, "\t\t\t<queryFilename>./%s</queryFilename>\n", queryname);
   fprintf(out, "\t\t\t<querySequencetype>%s</querySequencetype>\n", qseqtypedescr);
@@ -1317,7 +1477,7 @@ void hits_show_xml_paralign(long showalignments,
     putc(query.sym[(int)(q.seq[i])], out);
   fprintf(out, "</querySequence>\n");
   fprintf(out, "\t\t</queryInformation>\n");
-  
+
   const char * dbseqtypedescr;
   const char * ncbidb;
   const char * ncbiopt;
@@ -1343,7 +1503,7 @@ void hits_show_xml_paralign(long showalignments,
   fprintf(out, "\t\t\t<sequenceCount>%ld</sequenceCount>\n", db_getseqcount_masked());
   fprintf(out, "\t\t\t<longestSequenceLength>%ld</longestSequenceLength>\n", db_getlongest());
   fprintf(out, "\t\t</databaseInformation>\n");
-  
+
   const char * strands = "";
   switch(querystrands)
   {
@@ -1395,7 +1555,7 @@ void hits_show_xml_paralign(long showalignments,
   fprintf(out, "\t\t\t\t<alignmentLimit>%ld</alignmentLimit>\n", alignments);
   fprintf(out, "\t\t\t\t<subalignmentLimit>%ld</subalignmentLimit>\n", (long)1);
   fprintf(out, "\t\t\t</displayLimits>\n");
-  fprintf(out, "\t\t\t<threads>%ld</threads>\n", threads);
+  fprintf(out, "\t\t\t<threads>%d</threads>\n", threads);
   fprintf(out, "\t\t</options>\n");
 
   fprintf(out, "\t\t\t<searchInformation>\n");
@@ -1417,9 +1577,9 @@ void hits_show_xml_paralign(long showalignments,
   fprintf(out, "\t\t\t</resultHits>\n");
   fprintf(out, "\t\t\t<alignmentCount>%ld</alignmentCount>\n", showalignments);
   fprintf(out, "\t\t</resultInformation>\n");
-  
+
   fprintf(out, "\t\t<shortVersionHits>\n");
-  
+
   for(long i=0; i<showhits; i++)
   {
     long score = hits_list[i].score;
@@ -1436,7 +1596,7 @@ void hits_show_xml_paralign(long showalignments,
     int linklen;
     db_parse_header(t, hits_list[i].header_address, hits_list[i].header_length,
 		    1, & deflines, & deflinetable);
-    hits_defline_split(deflinetable[0], 
+    hits_defline_split(deflinetable[0],
 		       & gi,
 		       & link, & linklen,
 		       & title);
@@ -1461,22 +1621,22 @@ void hits_show_xml_paralign(long showalignments,
     }
     else if (symtype == 2)
     {
-      fprintf(out, "\t\t\t\t<shortVersionFrame>%c%ld</shortVersionFrame>\n", 
-	     hits_list[i].qstrand ? '-' : '+', 
+      fprintf(out, "\t\t\t\t<shortVersionFrame>%c%ld</shortVersionFrame>\n",
+	     hits_list[i].qstrand ? '-' : '+',
 	     hits_list[i].qframe+1);
     }
     else if (symtype == 3)
     {
-      fprintf(out, "\t\t\t\t<shortVersionFrame>%c%ld</shortVersionFrame>\n", 
-	     hits_list[i].dstrand ? '-' : '+', 
+      fprintf(out, "\t\t\t\t<shortVersionFrame>%c%ld</shortVersionFrame>\n",
+	     hits_list[i].dstrand ? '-' : '+',
 	     hits_list[i].dframe+1);
     }
     else if (symtype == 4)
     {
-      fprintf(out, "\t\t\t\t<shortVersionFrame>%c%ld/%c%ld</shortVersionFrame>\n", 
-	     hits_list[i].qstrand ? '-' : '+', 
+      fprintf(out, "\t\t\t\t<shortVersionFrame>%c%ld/%c%ld</shortVersionFrame>\n",
+	     hits_list[i].qstrand ? '-' : '+',
 	     hits_list[i].qframe+1,
-	     hits_list[i].dstrand ? '-' : '+', 
+	     hits_list[i].dstrand ? '-' : '+',
 	     hits_list[i].dframe+1);
     }
     fprintf(out, "\t\t\t\t<shortVersionScore>%ld</shortVersionScore>\n", score);
@@ -1493,16 +1653,16 @@ void hits_show_xml_paralign(long showalignments,
   if (showalignments)
   {
     fprintf(out, "\t\t<longVersionHits>\n");
-    
+
     for(long i=0; i<showalignments; i++)
     {
-      
+
       char anchor[200];
       make_anchor(anchor, 200, query.symtype, queryno, i);
-      
+
       fprintf(out, "\t\t\t<longVersionHit>\n");
       fprintf(out, "\t\t\t\t<longVersionAnchor>%s</longVersionAnchor>\n", anchor);
-      
+
       long deflines;
       char ** deflinetable;
       long gi = 0;
@@ -1512,14 +1672,14 @@ void hits_show_xml_paralign(long showalignments,
       db_parse_header(t, hits_list[i].header_address, hits_list[i].header_length,
 		      1, & deflines, & deflinetable);
       fprintf(out, "\t\t\t\t<linkContainer>\n");
-      
+
       for (int d=0; d < deflines; d++)
       {
-	hits_defline_split(deflinetable[d], 
+	hits_defline_split(deflinetable[d],
 			   & gi,
 			   & link, & linklen,
 			   & title);
-  
+
         if (gi)
 	{
           fprintf(out, "\t\t\t\t\t<longVersionLink>\n");
@@ -1527,21 +1687,21 @@ void hits_show_xml_paralign(long showalignments,
 	  fprintf(out, "\t\t\t\t\t\t<longVersionLinkText>gi|%ld</longVersionLinkText>\n", gi);
 	  fprintf(out, "\t\t\t\t\t</longVersionLink>\n");
 	}
-      
+
 	fprintf(out, "\t\t\t\t\t<longVersionLink>\n");
 	fprintf(out, "\t\t\t\t\t\t<longVersionLinkDestination>http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Search&amp;db=%s&amp;term=%.*s&amp;doptcmdl=%s</longVersionLinkDestination>\n", ncbidb, linklen, link, ncbiopt);
 	fprintf(out, "\t\t\t\t\t\t<longVersionLinkText>%.*s</longVersionLinkText>\n", linklen, link);
 	fprintf(out, "\t\t\t\t\t</longVersionLink>\n");
-      
+
 	fprintf(out, "\t\t\t\t\t<longVersionName>%s</longVersionName>\n", title);
-      
+
 	free(deflinetable[d]);
       }
-    
+
       free(deflinetable);
-        
+
       fprintf(out, "\t\t\t\t</linkContainer>\n");
-    
+
       long dlen = hits_list[i].dlen;
       long dlennt = hits_list[i].dlennt;
 
@@ -1551,7 +1711,7 @@ void hits_show_xml_paralign(long showalignments,
 	fprintf(out, "\t\t\t\t<databaseSequenceLength>%ld nt</databaseSequenceLength>\n", dlennt);
       else
 	fprintf(out, "\t\t\t\t<databaseSequenceLength>%ld aa</databaseSequenceLength>\n", dlen);
-      
+
       if (symtype == 0)
       {
 	fprintf(out, "\t\t\t\t<alignmentMatchLocation>%s</alignmentMatchLocation>\n", hits_list[i].qstrand ? "Matches on complementary strands." : "Matches on same strands.");
@@ -1567,7 +1727,7 @@ void hits_show_xml_paralign(long showalignments,
 	  fprintf(out, "\t\t\t\t\t\t<queryFrame>%ld</queryFrame>\n", hits_list[i].qframe+1);
 	  fprintf(out, "\t\t\t\t\t</longVersionQueryFrame>\n");
 	}
-	
+
 	if ((symtype == 3) || (symtype == 4))
 	{
 	  fprintf(out, "\t\t\t\t\t<longVersionDatabaseFrame>\n");
@@ -1587,11 +1747,11 @@ void hits_show_xml_paralign(long showalignments,
       long indels;
       long gaps;
       long aligned;
-    
+
       char *qline;
       char *aline;
       char *dline;
-        
+
       whole_align(i, & identities, & positives, & indels, & aligned, & gaps,
 		  & qline, & aline, & dline);
 
@@ -1663,19 +1823,19 @@ void hits_show_xml(long show_gis,
 		   struct db_thread_s * t)
 {
   /* Simple XML */
-  
+
   fprintf(out, "<result>\n");
   fprintf(out, "  <general>\n");
   fprintf(out, "    <hitcount>%d</hitcount>\n", hits_count);
   fprintf(out, "  </general>\n");
   fprintf(out, "  <hits>\n");
-  
+
   for(long i=0; i<showhits; i++)
   {
     long seqno = hits_list[i].seqno;
     long score = hits_list[i].score;
     long dlen = hits_list[i].dlen;
-    
+
     fprintf(out, "    <hit>\n");
     fprintf(out, "      <hitno>%ld</hitno>\n", i+1);
     fprintf(out, "      <track>%ld</track>\n", seqno);
@@ -1689,7 +1849,7 @@ void hits_show_xml(long show_gis,
     fprintf(out, "</name>\n");
     fprintf(out, "      <len>%ld</len>\n", dlen);
     fprintf(out, "      <score>%ld</score>\n", score);
-    
+
     if (i < showalignments)
     {
       long identities;
@@ -1701,7 +1861,7 @@ void hits_show_xml(long show_gis,
       char *qline;
       char *aline;
       char *dline;
-        
+
       whole_align(i, & identities, & positives, & indels, & aligned, & gaps,
 		  & qline, & aline, & dline);
 
@@ -1711,7 +1871,7 @@ void hits_show_xml(long show_gis,
 
       fprintf(out, "      <qpos>%ld,%ld</qpos>\n", q_first, q_last);
       fprintf(out, "      <dpos>%ld,%ld</dpos>\n", d_first, d_last);
-      
+
       fprintf(out, "      <qseq>%s</qseq>\n", qline);
       fprintf(out, "      <aseq>%s</aseq>\n", aline);
       fprintf(out, "      <dseq>%s</dseq>\n", dline);
@@ -1732,7 +1892,7 @@ void hits_show_tsv(long showalignments,
 {
   char title[] = "SWIPE " SWIPE_VERSION;
   char ref[] = "Reference: T. Rognes (2011) Faster Smith-Waterman database searches with inter-sequence SIMD parallelisation, BMC Bioinformatics, 12:221.";
-  
+
   if (showcomments)
     {
       fprintf(out, "# %s - Compiled %s %s - %s\n", title, __DATE__, __TIME__, ref);
@@ -1751,18 +1911,18 @@ void hits_show_tsv(long showalignments,
     db_showheader(t, hits_list[i].header_address,
 		  hits_list[i].header_length,
 		  1, 0, 0, LONG_MAX, 1, 0);
-    
+
     long identities;
     long positives;
     long gaps;
     long aligned;
     long indels;
-    
+
     count_align(i, & identities, & positives, & indels, & aligned, & gaps);
-    
+
     long score = hits_list[i].score;
-    
-    fprintf(out, "\t%.2f\t%ld\t%ld\t%ld\t%ld\t%ld\t%ld\t%ld", 
+
+    fprintf(out, "\t%.2f\t%ld\t%ld\t%ld\t%ld\t%ld\t%ld\t%ld",
 	    100.0 * identities / aligned,
 	    aligned,
 	    aligned - identities - indels,
@@ -1771,8 +1931,8 @@ void hits_show_tsv(long showalignments,
 	    q_last,
 	    d_first,
 	    d_last);
-    
-    if (stats_available)
+
+/*    if (stats_available)
     {
       double expect = Kmn * exp(- lambda * score);
       fprintf(out, "\t%.2g", expect);
@@ -1780,7 +1940,7 @@ void hits_show_tsv(long showalignments,
       fprintf(out, "\t%.1f", bits);
     }
     else
-    {
+*/    {
       fprintf(out, "\t%ld", score);
     }
 
@@ -1808,7 +1968,7 @@ void hits_show_plain(long show_gis,
       {
 	fprintf(out, "Sequences producing significant alignments:                         Score\n\n");
       }
-	  
+
       for(long i=0; i<showhits; i++)
       {
 	long headerlen = 67;
@@ -1818,14 +1978,14 @@ void hits_show_plain(long show_gis,
 	  headerlen = 64;
 	else if (symtype == 4)
 	  headerlen = 61;
-	      
-	db_showheader(t, 
+
+	db_showheader(t,
 		      hits_list[i].header_address,
-		      hits_list[i].header_length, 
+		      hits_list[i].header_length,
 		      show_gis, 0, headerlen, headerlen, 1, 1);
 
 	long score = hits_list[i].score;
-	      
+
 	if (symtype == 0)
 	  fprintf(out, " %c", hits_list[i].dstrand ? '-' : '+');
 	else if (symtype == 2)
@@ -1835,21 +1995,21 @@ void hits_show_plain(long show_gis,
 	  fprintf(out, " %c%ld", hits_list[i].dstrand ? '-' : '+',
 		 hits_list[i].dframe+1);
 	else if (symtype == 4)
-	  fprintf(out, " %c%ld/%c%ld", 
+	  fprintf(out, " %c%ld/%c%ld",
 		 hits_list[i].qstrand ? '-' : '+',
 		 hits_list[i].qframe+1,
 		 hits_list[i].dstrand ? '-' : '+',
 		 hits_list[i].dframe+1);
-	      
+
 	if (stats_available)
 	{
 	  long bits = (long) floor(lambda_d_log2 * score - logK_d_log2 + 0.5);
 	  double expect = Kmn * exp(- lambda * score);
-		
+
 	  fprintf(out, " %5ld", bits);
-		
+
 	  fprintf(out, "   ");
-		
+
 	  hits_show_expect(expect);
 	}
 	else
@@ -1875,14 +2035,14 @@ void hits_show_plain(long show_gis,
 	else
 	  fprintf(out, "          Length = %ld\n", hits_list[i].dlen);
 	fprintf(out, "\n");
-	      
+
 	long score = hits_list[i].score;
 
 	if (stats_available)
 	{
 	  double bits = lambda_d_log2 * score - logK_d_log2;
 	  double expect = Kmn * exp(- lambda * score);
-		
+
 	  fprintf(out, " Score = %.1lf bits (%ld), Expect = ", bits, score);
 	  hits_show_expect(expect);
 	}
@@ -1900,7 +2060,7 @@ void hits_show_plain(long show_gis,
 	long indels;
 
 	count_align(i, & identities, & positives, & indels, & aligned, & gaps);
-	      
+
 	fprintf(out, " Identities = %ld/%ld (%ld%%)",
 	       identities, aligned, identities * 100 / aligned);
 	if (symtype > 0)
@@ -1917,7 +2077,7 @@ void hits_show_plain(long show_gis,
 	else if (symtype == 3)
 	  fprintf(out, " Frame = %c%ld\n", hits_list[i].dstrand ? '-':'+', hits_list[i].dframe+1);
 	else if (symtype == 4)
-	  fprintf(out, " Frame = %c%ld / %c%ld\n", 
+	  fprintf(out, " Frame = %c%ld / %c%ld\n",
 		 hits_list[i].qstrand ? '-' : '+',
 		 hits_list[i].qframe+1,
 		 hits_list[i].dstrand ? '-' : '+',
@@ -1926,20 +2086,20 @@ void hits_show_plain(long show_gis,
 #if 0
 	// fprintf(out, "String: %s\n", hits_list[i].alignment);
 
-	fprintf(out, "\nAlignment end: %ld, %ld\n", 
+	fprintf(out, "\nAlignment end: %ld, %ld\n",
 	       hits_list[i].bestq+1,
 	       hits_list[i].align_hint+1);
-	fprintf(out, "Hint offset: %ld, %ld\n", 
+	fprintf(out, "Hint offset: %ld, %ld\n",
 	       hits_list[i].align_q_end - hits_list[i].bestq,
 	       hits_list[i].align_d_end - hits_list[i].align_hint);
 
-	fprintf(out, "Alignment score: %ld\n",hits_list[i].score_align); 
+	fprintf(out, "Alignment score: %ld\n",hits_list[i].score_align);
 #endif
 
 	show_align(i);
 	fprintf(out, "\n");
       }
-	  
+
     }
     //      fprintf(out, "\n");
 }
@@ -1948,10 +2108,10 @@ void hits_show_begin(long view)
 {
   if (view==0)
     {
-      fprintf(out, "%s [%s %s]\n\n%s\n\n", 
-	      "SWIPE " SWIPE_VERSION, 
-	      __DATE__, 
-	      __TIME__, 
+      fprintf(out, "%s [%s %s]\n\n%s\n\n",
+	      "SWIPE " SWIPE_VERSION,
+	      __DATE__,
+	      __TIME__,
 	      "Reference: T. Rognes (2011) Faster Smith-Waterman database searches\nwith inter-sequence SIMD parallelisation, BMC Bioinformatics, 12:221.");
     }
   else if (view==7)
@@ -1986,6 +2146,116 @@ void hits_show_end(long view)
   }
 }
 
+/**
+ * C++ version 0.4 char* style "itoa":
+ * Written by Lukás Chmela
+ * Released under GPLv3.
+ */
+char* itoa(int value, char* result, int base) {
+    // check that the base if valid
+    if (base < 2 || base > 36) { *result = '\0'; return result; }
+
+    char* ptr = result, *ptr1 = result, tmp_char;
+    int tmp_value;
+
+    do {
+        tmp_value = value;
+        value /= base;
+        *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz" [35 + (tmp_value - value * base)];
+    } while ( value );
+
+    // Apply negative sign
+    if (tmp_value < 0) *ptr++ = '-';
+    *ptr-- = '\0';
+    while(ptr1 < ptr) {
+        tmp_char = *ptr;
+        *ptr--= *ptr1;
+        *ptr1++ = tmp_char;
+    }
+    return result;
+}
+	
+void hits_show_score_only(struct db_thread_s * t)
+{
+  char * address;
+  long length;
+  long deflines;
+  char ** deflinetable;
+  long gi;
+  char * link;
+  char * title;
+  int linklen;
+		       
+
+/*  long identities;
+  long positives;
+  long gaps;
+  long aligned;
+  long indels;
+*/
+  for(long i=0; i<hits_count; i++)
+  {
+    struct hits_entry * h = hits_list + i;
+    
+    if (!h->alignment)
+        continue;
+    
+    gi = 0;
+    //identities = positives = gaps = aligned = indels = 0;
+
+    db_mapheaders(t, h->seqno, h->seqno);
+    db_getheader(t, h->seqno, & address, & length);
+    
+    db_parse_header(t, address, length,1, & deflines, & deflinetable);
+    hits_defline_split(deflinetable[0], & gi, & link, & linklen, & title);
+    
+    //print only query identifier, not the whole description line
+    int subj_id_len = length;
+    char* id_end = strchr(title, ' '); // should be strnchr(title, length, ' ');
+    if (id_end)
+        subj_id_len = id_end - title;
+    int qry_id_len = query.dlen;
+    id_end = strchr(query.description, ' '); // should be strnchr(title, length, ' ');
+    if (id_end)
+        qry_id_len = id_end - query.description;
+/*    if (h->flags & HIT_SUBJECT_QUERY_BEST_BL62)
+      fprintf(out, "%.*s\t%.*s", subj_id_len, title, qry_id_len, query.description);
+    else
+*/      fprintf(out, "%.*s\t%.*s", qry_id_len, query.description, subj_id_len, title);
+
+//    if (h->alignment)
+//        count_align(i, & identities, & positives, & indels, & aligned, & gaps);
+
+    char flags[100];
+    itoa(h->flags, flags, 2);       //2 means binary u can convert n upto base 36
+       
+    // qseqid sseqid AdjScrBL62 AdjScrBL62_symm qstart qend sstart send pident ppos length nident positive mismatch gapopen gaps flags
+//    long score = h->score; fprintf(out, "\t%ld\t%d\t%d\t%d\t%ld\t%ld\t%ld\t%ld", score, (int)round((float)h->score_adjusted/scaling_factor), (int)round((float)h->score_adjusted_blast/scaling_factor_BL62), (int)round((float)h->score_adjusted_blast_rev/scaling_factor_BL62), h->align_q_start+1, h->align_q_end+1, h->align_d_start+1, h->align_d_end+1);
+    fprintf(out, /*"\t%ld\t%d"*/"\t%d\t%d\t%ld\t%ld\t%ld\t%ld", /*score, (int)round((float)h->score_adjusted/scaling_factor),*/ (int)round((float)h->score_adjusted_blast/scaling_factor_BL62), (int)round((float)h->score_adjusted_blast_rev/scaling_factor_BL62), h->align_q_start+1, h->align_q_end+1, h->align_d_start+1, h->align_d_end+1);
+    if (h->alignment) {
+//        long positives = h->aligned - (h->aligned - h->identities - h->indels);
+        fprintf(out, "\t%.2f\t%.2f\t%ld\t%ld\t%ld\t%ld\t%ld\t%ld\t%s\n",
+            100.0 * h->identities / h->aligned,
+            100.0 * h->positives / h->aligned,
+            h->aligned,
+            h->identities,
+            h->positives,
+            h->aligned - h->identities - h->indels,
+            h->gaps,
+            h->indels,
+            flags
+        );
+        //show_align(i);
+        //fprintf(out, "%s\n", h->alignment);
+    } else
+        fprintf(out, "\n");
+
+    /*if (h->score_align != h->score_adjusted_blast)
+        fprintf(out, "Raw scores differ: %ld vs %ld (%.2f vs %.2f)\n", h->score_align, h->score_adjusted_blast, (float)h->score_align/scaling_factor, (float)h->score_adjusted_blast/scaling_factor_BL62);
+        */
+  }
+}
+
 void hits_show(long view, long show_gis)
 {
   // compute number of hits and alignments to actually show
@@ -2002,7 +2272,7 @@ void hits_show(long view, long show_gis)
     showalignments = hits_count;
   else
     showalignments = opt_alignments;
-  
+
   struct db_thread_s * t = db_thread_create();
 
   if(view == 0)
@@ -2016,6 +2286,10 @@ void hits_show(long view, long show_gis)
   else if ((view==8)||(view==9))
   {
     hits_show_tsv(showalignments, view == 9, t);
+  }
+  else if (view==88)
+  {
+    hits_show_score_only(t);
   }
   else if (view==99)
   {

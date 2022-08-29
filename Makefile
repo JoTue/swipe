@@ -24,15 +24,20 @@
 
 # Makefile for SWIPE
 
+export LD_LIBRARY_PATH=/apps/compat/8.6/lib64:/apps/compat/8.6/lib:/apps/python3/3.10.4/lib:/apps/lua/5.4.2/lib:/apps/gcc/12.1.0/lib64:/apps/gcc/12.1.0/lib:/apps/java/14.0.2/lib/server:/apps/R/4.2.0/lib64:/apps/slurm/22.05.2/lib/slurm:/apps/slurm/22.05.2/lib:/scratch/cube/tuechler/swipe_LIBS/custom_lib/3/ncbi-blast-2.13.0+-src/c++/ReleaseMT/lib
+# export LD_LIBRARY_PATH=/apps/compat/8.6/lib64:/apps/compat/8.6/lib:/apps/python3/3.10.4/lib:/apps/lua/5.4.2/lib:/apps/gcc/12.1.0/lib64:/apps/gcc/12.1.0/lib:/apps/java/14.0.2/lib/server:/apps/R/4.2.0/lib64:/apps/slurm/22.05.2/lib/slurm:/apps/slurm/22.05.2/lib:/scratch/cube/tuechler/swipe_LIBS/lib
+
+# BLAST lib with compo_thresholds: /scratch/cube/tuechler/swipe_LIBS/custom_lib/3
+
 MPI_COMPILE=`mpicxx --showme:compile`
 MPI_LINK=`mpicxx --showme:link`
 
 COMMON=-g
 #COMMON=-pg -g
 
-COMPILEOPT=-Wall
+COMPILEOPT=-Wall -O3 -DCOMPO_ADJUSTMENT -DCOMPO_THRESHOLDS #-DSWLIB_8BIT #-DCOMPO_THRESHOLDS
 
-LIBS=-lpthread
+LIBS=-lpthread -lcomposition_adjustment -lxblast -lxncbi
 
 # Intel options
 #CXX=icpc
@@ -40,27 +45,43 @@ LIBS=-lpthread
 #LINKFLAGS=$(COMMON)
 
 # GNU options
-CXX=g++
-CXXFLAGS=$(COMPILEOPT) $(COMMON) -O3
-LINKFLAGS=$(COMMON)
+CXX=g++  # works with newest version gcc/12.1.0
+#CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../ncbi-blast-2.2.29+-src/c++/src -I../ncbi-blast-2.2.29+-src/c++/include -I../ncbi-blast-2.2.29+-src/c++/DebugMT/inc -I../ncbi-blast-2.2.29+-src/c++/src/algo/blast/core
+# CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../ncbi_blast/ncbi-blast-2.13.0+-src/c++/src -I../ncbi_blast/ncbi-blast-2.13.0+-src/c++/include -I../ncbi_blast/ncbi-blast-2.13.0+-src/c++/src/algo/blast/core
+# CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/src -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/include -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/src/algo/blast/core
+# CXXFLAGS=$(COMPILEOPT) $(COMMON) -I/apps/ncbiblastplus/2.11.0/include/ncbi-tools++/ -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/src -I../ncbi_blast/ncbi-blast-2.2.29+-src/c++/src/algo/blast/core
 
-PROG=swipe mpiswipe
+# works with newest available libraries
+# CXXFLAGS=$(COMPILEOPT) $(COMMON) -I../swipe_LIBS/ncbi-tools++/ -I../swipe_LIBS/src -I../swipe_LIBS/src/algo/blast/core
+# CXXFLAGS=$(COMPILEOPT) $(COMMON) -I/scratch/cube/tuechler/swipe_LIBS/custom_lib/ncbi-blast-2.13.0+-src/c++/include -I/scratch/cube/tuechler/swipe_LIBS/custom_lib/ncbi-blast-2.13.0+-src/c++/src -I/scratch/cube/tuechler/swipe_LIBS/custom_lib/ncbi-blast-2.13.0+-src/c++/src/algo/blast/core -I/scratch/cube/tuechler/swipe_LIBS/custom_lib/ncbi-blast-2.13.0+-src/c++/ReleaseMT/inc
+CXXFLAGS=$(COMPILEOPT) $(COMMON) -I/scratch/cube/tuechler/swipe_LIBS/custom_lib/3/ncbi-blast-2.13.0+-src/c++/include -I/scratch/cube/tuechler/swipe_LIBS/custom_lib/3/ncbi-blast-2.13.0+-src/c++/src -I/scratch/cube/tuechler/swipe_LIBS/custom_lib/3/ncbi-blast-2.13.0+-src/c++/src/algo/blast/core -I/scratch/cube/tuechler/swipe_LIBS/custom_lib/3/ncbi-blast-2.13.0+-src/c++/ReleaseMT/inc
+
+# LINKFLAGS=$(COMMON) -L../ncbi-blast-2.2.29+-src/c++/DebugMT/lib
+# LINKFLAGS=$(COMMON) -L../swipe_LIBS/lib
+# LINKFLAGS=$(COMMON) -L/scratch/cube/tuechler/simap2/string2020/clip/lib
+
+LINKFLAGS=$(COMMON) -L/scratch/cube/tuechler/swipe_LIBS/custom_lib/3/ncbi-blast-2.13.0+-src/c++/ReleaseMT/lib
+# LINKFLAGS=$(COMMON) -L../swipe_LIBS/lib
+
+# PROG=swipe # mpiswipe
+PROG=swipe_test # mpiswipe
 
 all : $(PROG)
 
 clean :
-	rm -f *.o *~ $(PROG) gmon.out
+	rm -f *.o *.ii *.s *.i *~ $(PROG) gmon.out
 
 OBJS = database.o asnparse.o align.o matrices.o \
 	stats.o hits.o query.o \
-	search63.o search16.o search16s.o search7.o search7_ssse3.o
+	search63.o search16.o search16s.o search7.o search7_ssse3.o \
+        fasta.o adjusted.o SSW/src/ssw.c
 
 DEPS = swipe.h Makefile
 
 .SUFFIXES:.o .cc
 
-swipe : swipe.o $(OBJS)
-	$(CXX) $(LINKFLAGS) -o $@ $^ $(LIBS)
+swipe_test : swipe.o $(OBJS)
+	$(CXX) $(LINKFLAGS) -o $@ $^ $(LIBS) -g
 
 mpiswipe : mpiswipe.o $(OBJS)
 	$(CXX) $(LINKFLAGS) -o $@ $^ $(LIBS) $(MPI_LINK)

@@ -3,6 +3,7 @@
     Smith-Waterman database searches with Inter-sequence Parallel Execution
 
     Copyright (C) 2008-2014 Torbjorn Rognes, University of Oslo, 
+
     Oslo University Hospital and Sencel Bioinformatics AS
 
     This program is free software: you can redistribute it and/or modify
@@ -18,8 +19,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-    Contact: Torbjorn Rognes <torognes@ifi.uio.no>, 
-    Department of Informatics, University of Oslo, 
+    Contact: Torbjorn Rognes <torognes@ifi.uio.no>,
+    Department of Informatics, University of Oslo,
     PO Box 1080 Blindern, NO-0316 Oslo, Norway
 */
 
@@ -34,6 +35,7 @@
 // b (of length N) is the database sequence
 
 #define MAX(a,b) (a > b ? a : b)
+#endif
 
 void region(char * a_seq,
 	    char * b_seq,
@@ -48,7 +50,7 @@ void region(char * a_seq,
 	    long * b_end,
 	    long * s)
 {
-  
+
   long * HH = (long *) xmalloc(N * sizeof(long));
   long * EE = (long *) xmalloc(N * sizeof(long));
 
@@ -72,7 +74,7 @@ void region(char * a_seq,
       HH[j] = 0;
       EE[j] = - q;
     }
-    
+
     for (i = 0; i < M; i++)
     {
       long h = 0;
@@ -82,20 +84,20 @@ void region(char * a_seq,
       {
 	f = MAX(f, h - q) - r;
 	EE[j] = MAX(EE[j], HH[j] - q) - r;
-	
+
 	h = p + (scorematrix + (b_seq[j]<<5))[(int)(a_seq[i])];
-	
+
 	if (h < 0)
 	  h = 0;
 	if (f > h)
 	  h = f;
 	if (EE[j] > h)
 	  h = EE[j];
-	
+
 	p = HH[j];
-	
+
 	HH[j] = h;
-	
+
 	if (h > score)
 	{
 	  score = h;
@@ -452,7 +454,7 @@ void diff(struct aligner_info * aip,
 	{
 	  diff(aip, a_seq, b_seq, I, J, a_pos, b_pos,
 	       scorematrix, q, r, tb, q);
-	  diff(aip, a_seq, b_seq, M-I, N-J, a_pos+I, b_pos+J, 
+	  diff(aip, a_seq, b_seq, M-I, N-J, a_pos+I, b_pos+J,
 	       scorematrix, q, r, q, te);
 	}
       else if (P == 1)
@@ -498,14 +500,14 @@ void align(char * a_seq,
 	 a_end,
 	 b_end,
 	 & score);
-  
+
   diff(& ai,
        a_seq,
        b_seq,
        *a_end - *a_begin + 1,
        *b_end - *b_begin + 1,
-       *a_begin, 
-       *b_begin, 
+       *a_begin,
+       *b_begin,
        scorematrix,
        q,
        r,
