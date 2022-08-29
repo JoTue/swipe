@@ -1,23 +1,18 @@
 /*
     SWIPE
     Smith-Waterman database searches with Inter-sequence Parallel Execution
-
-    Copyright (C) 2008-2013 Torbjorn Rognes, University of Oslo,
+    Copyright (C) 2008-2014 Torbjorn Rognes, University of Oslo, 
     Oslo University Hospital and Sencel Bioinformatics AS
-
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
     published by the Free Software Foundation, either version 3 of the
     License, or (at your option) any later version.
-
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
-
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
     Contact: Torbjorn Rognes <torognes@ifi.uio.no>,
     Department of Informatics, University of Oslo,
     PO Box 1080 Blindern, NO-0316 Oslo, Norway
@@ -232,10 +227,12 @@ void fatal(const char * format, const char * message)
 void * xmalloc(size_t size)
 {
   const size_t alignment = 16;
-  void * t;
+
+  void * t = NULL;
 #ifdef _WIN32
   t = _aligned_malloc(size, alignment);
 #else
+
   posix_memalign(& t, alignment, size);
 #endif // _WIN32
 
@@ -633,7 +630,6 @@ void align_threads_init()
   }
 
   long totalchunks;
-  long maxchunksize;
 
   calc_chunks(bins,
 	      threads,
@@ -4520,7 +4516,6 @@ void prepare_search(long par)
 
 #else
   long seqcount = db_getseqcount();
-
   long chunkcount;
   if (seqcount >= 16*par)
   {
@@ -4534,32 +4529,22 @@ void prepare_search(long par)
   {
     chunkcount = seqcount;
   }
-
 //  fprintf(out, "Chunkcount: %ld\n", chunkcount);
-
   long volcount = db_getvolumecount();
   long rest_chunks = chunkcount;
   long rest_seqcount = seqcount;
-
   //  fprintf(out, "Seqcount, chunkcount, ratio (total): %ld, %ld, %f\n", seqcount, chunkcount, 1.0 * seqcount / chunkcount);
-
   maxchunksize = 0;
-
   for(long i = 0; i < volcount; i++)
   {
     long volsize = db_getseqcount_volume(i);
     long volchunk = ((rest_chunks * volsize) + rest_seqcount - 1) / rest_seqcount;
-
     volseqs[i] = volsize;
     volchunks[i] = volchunk;
-
     long chunksize = (volsize + volchunk -1) / volchunk;
-
     if (chunksize > maxchunksize)
       maxchunksize = chunksize;
-
     // fprintf(out, "Seqcount, chunkcount, ratio (%ld): %ld, %ld, %f\n", i, volsize, volchunk, 1.0 * volsize / volchunk);
-
     rest_chunks -= volchunk;
     rest_seqcount -= volsize;
   }

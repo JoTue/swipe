@@ -1,3 +1,18 @@
+2021-06-28  Torbjorn Rognes  <torognes@ifi.uio.no>
+        * Version 2.1.1
+        * Fix for very long header strings in NCBI database files
+
+2018-05-04  Torbjorn Rognes  <torognes@ifi.uio.no>
+	* Version 2.1.0
+        * Fix for changes to NCBI database format
+        * Added query description to XML output
+        * Fixed compilation errors with C++11
+
+2015-12-18  Torbjorn Rognes  <torognes@ifi.uio.no>
+	* Version 2.0.12
+	* Fixed a bug in memory allocation that caused segfaults.
+	* Fixed a minor memory leak.
+
 2014-06-27  Torbjorn Rognes  <torognes@ifi.uio.no>
 	* Version 2.0.11
 	* Resolved a bug that resulted in SWIPE terminating with a fatal
@@ -8,6 +23,12 @@
 	  asked for using the -b and -v options was higher than the possible
 	  maximum number.
 
+2014-06-25  Torbjorn Rognes  <torognes@ifi.uio.no>
+	* Version 2.0.10
+	* Resolved an inconsistency in SWIPE with custom non-symmetric
+	  matrices. This problem could result in SWIPE terminating with a
+	  fatal internal error in the align function.
+  
 2014-01-21  Torbjorn Rognes  <torognes@ifi.uio.no>
 	* Version 2.0.9
 	* Changed inline assembler syntax (adding register prefix) to

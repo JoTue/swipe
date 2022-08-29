@@ -1807,6 +1807,16 @@ void hits_show_xml_paralign(long showalignments,
   fprintf(out, "\t</paralignOutput>\n");
 }
 
+static void show_description(const char *desc)
+{
+  const char *dptr;
+
+  for (dptr = desc; *dptr != '\0' && *dptr != ' '; dptr++)
+  {
+    putc(*dptr, out);
+  }
+}
+
 void hits_show_xml(long show_gis,
 		   long showalignments,
 		   long showhits,
@@ -1829,6 +1839,9 @@ void hits_show_xml(long show_gis,
     fprintf(out, "    <hit>\n");
     fprintf(out, "      <hitno>%ld</hitno>\n", i+1);
     fprintf(out, "      <track>%ld</track>\n", seqno);
+    fprintf(out, "      <query>");
+    show_description(query.description);
+    fprintf(out,"</query>\n");
     fprintf(out, "      <name>");
     db_showheader(t, hits_list[i].header_address,
 		  hits_list[i].header_length,
@@ -1893,11 +1906,7 @@ void hits_show_tsv(long showalignments,
 
   for(long i=0; i<showalignments; i++)
   {
-    char * s = query.description;
-    char c;
-    while ((c = *s++) && (c != ' '))
-      putc(c, out);
-
+    show_description(query.description);
     putc('\t', out);
     db_showheader(t, hits_list[i].header_address,
 		  hits_list[i].header_length,
@@ -2288,4 +2297,3 @@ void hits_show(long view, long show_gis)
   }
   db_thread_destruct(t);
 }
-

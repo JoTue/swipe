@@ -108,7 +108,6 @@ void dprofile_dump16(WORD * dprofile)
   "        pmaxsw  " H ", %%xmm12      \n"	\
   "        pmaxsw  " H ", " F "        \n"
 
-
 inline void donormal16(volatile __m128i * Sm,  /* r9  */
 		       __m128i * hep, /* rdi */
 		       __m128i ** qp, /* rsi */
