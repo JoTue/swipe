@@ -1,3 +1,18 @@
+2021-06-28  Torbjorn Rognes  <torognes@ifi.uio.no>
+        * Version 2.1.1
+        * Fix for very long header strings in NCBI database files
+
+2018-05-04  Torbjorn Rognes  <torognes@ifi.uio.no>
+	* Version 2.1.0
+        * Fix for changes to NCBI database format
+        * Added query description to XML output
+        * Fixed compilation errors with C++11
+
+2015-12-18  Torbjorn Rognes  <torognes@ifi.uio.no>
+	* Version 2.0.12
+	* Fixed a bug in memory allocation that caused segfaults.
+	* Fixed a minor memory leak.
+
 2014-06-27  Torbjorn Rognes  <torognes@ifi.uio.no>
 	* Version 2.0.11
 	* Resolved a bug that resulted in SWIPE terminating with a fatal
