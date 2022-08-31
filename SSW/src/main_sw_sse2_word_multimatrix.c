@@ -518,7 +518,7 @@ int main (int argc, char * const argv[]) {
 			// if (path == 1) flag = 2;
 			sw_sse2_word2(ref_num, 0, refLen, p->readLen, gap_open, gap_extension, p->profile_word, filter, maskLen, &ae);
 			if (ae.score >= filter) {
-				fprintf(stderr, "ae.score: %i\n", ae.score);
+				// fprintf(stderr, "ae.score: %i\n", ae.score);
 				ssw_write2(ae.score, ref_seq, read_seq);
 			}
 			// result = ssw_align (p, ref_num, refLen, gap_open, gap_extension, flag, filter, 0, maskLen);
@@ -543,7 +543,7 @@ int main (int argc, char * const argv[]) {
 	}
 	end = clock();
 	cpu_time = ((float) (end - start)) / CLOCKS_PER_SEC;
-	fprintf(stderr, "CPU time: %f seconds\n", cpu_time);
+	// fprintf(stderr, "CPU time: %f seconds\n", cpu_time);
 
 	if (num_rc) {
 		free(num_rc);

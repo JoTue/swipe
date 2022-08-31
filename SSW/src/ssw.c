@@ -1067,6 +1067,12 @@ alignment_end* sw_sse2_byte2 (const int8_t* ref,
 	int32_t end_ref = -1; /* 0_based best alignment ending point; Initialized as isn't aligned -1. */
 	int32_t segLen = (readLen + 15) / 16; /* number of segment */
 
+	/* array to record the largest score of each reference position */
+	uint8_t* maxColumn = (uint8_t*) calloc(refLen, 1);
+
+	/* array to record the alignment read ending position of the largest score of each reference position */
+	int32_t* end_read_column = (int32_t*) calloc(refLen, sizeof(int32_t));
+
 	/* Define 16 byte 0 vector. */
 	__m128i vZero = _mm_set1_epi32(0);
 
@@ -1076,7 +1082,7 @@ alignment_end* sw_sse2_byte2 (const int8_t* ref,
     __m128i* pvE = ae->pvE;
     __m128i* pvHmax = ae->pvHmax;
 
-	int32_t i, j;
+	int32_t i, j, k;
 	/* 16 byte insertion begin vector */
 	__m128i vGapO = _mm_set1_epi8(weight_gapO);
 
@@ -1141,39 +1147,20 @@ alignment_end* sw_sse2_byte2 (const int8_t* ref,
 		}
 
 		/* Lazy_F loop: has been revised to disallow adjecent insertion and then deletion, so don't update E(i, j), learn from SWPS3 */
-        /* reset pointers to the start of the saved data */
-        j = 0;
-        vH = _mm_load_si128 (pvHStore + j);
+		for (k = 0; LIKELY(k < 16); ++k) {
+			vF = _mm_slli_si128 (vF, 1);
+			for (j = 0; LIKELY(j < segLen); ++j) {
+				vH = _mm_load_si128(pvHStore + j);
+				vH = _mm_max_epu8(vH, vF);
+	    		vMaxColumn = _mm_max_epu8(vMaxColumn, vH);	// newly added line
+				_mm_store_si128(pvHStore + j, vH);
+				vH = _mm_subs_epu8(vH, vGapO);
+				vF = _mm_subs_epu8(vF, vGapE);
+				if (UNLIKELY(! _mm_movemask_epi8(_mm_cmpgt_epi8(vF, vH)))) goto end;
+			}
+		}
 
-        /*  the computed vF value is for the given column.  since */
-        /*  we are at the end, we need to shift the vF value over */
-        /*  to the next column. */
-        vF = _mm_slli_si128 (vF, 1);
-        vTemp = _mm_subs_epu8 (vH, vGapO);
-		vTemp = _mm_subs_epu8 (vF, vTemp);
-		vTemp = _mm_cmpeq_epi8 (vTemp, vZero);
-		cmp  = _mm_movemask_epi8 (vTemp);
-
-        while (cmp != 0xffff)
-        {
-            vH = _mm_max_epu8 (vH, vF);
-			vMaxColumn = _mm_max_epu8(vMaxColumn, vH);
-            _mm_store_si128 (pvHStore + j, vH);
-            vF = _mm_subs_epu8 (vF, vGapE);
-            j++;
-            if (j >= segLen)
-            {
-                j = 0;
-                vF = _mm_slli_si128 (vF, 1);
-            }
-            vH = _mm_load_si128 (pvHStore + j);
-
-            vTemp = _mm_subs_epu8 (vH, vGapO);
-            vTemp = _mm_subs_epu8 (vF, vTemp);
-            vTemp = _mm_cmpeq_epi8 (vTemp, vZero);
-            cmp  = _mm_movemask_epi8 (vTemp);
-        }
-
+end:		
 		vMaxScore = _mm_max_epu8(vMaxScore, vMaxColumn);
 		vTemp = _mm_cmpeq_epi8(vMaxMark, vMaxScore);
 		cmp = _mm_movemask_epi8(vTemp);
@@ -1193,10 +1180,9 @@ alignment_end* sw_sse2_byte2 (const int8_t* ref,
 			}
 		}
 
-		/* check for termination. */
-        uint8_t temp;
-		max16(temp, vMaxColumn);
-		if (temp >= terminate) break;
+		/* Record the max score of current column. */
+		max16(maxColumn[i], vMaxColumn);
+		if (maxColumn[i] == terminate) break;
 	}
 
 	/* Trace the alignment ending position on read. */
@@ -1280,6 +1266,12 @@ alignment_end* sw_sse2_word2 (const int8_t* ref,
 	int32_t end_read = readLen - 1;
 	int32_t end_ref = 0; /* 1_based best alignment ending point; Initialized as isn't aligned - 0. */
 	int32_t segLen = (readLen + 7) / 8; /* number of segment */
+
+	/* array to record the largest score of each reference position */
+	uint16_t* maxColumn = (uint16_t*) calloc(refLen, 2);
+
+	/* array to record the alignment read ending position of the largest score of each reference position */
+	int32_t* end_read_column = (int32_t*) calloc(refLen, sizeof(int32_t));
 	
 	/* Define 16 byte 0 vector. */
 	__m128i vZero = _mm_set1_epi32(0);
@@ -1382,10 +1374,9 @@ end:
 			}
 		}
 
-		/* check for termination. */
-        uint16_t temp;
-		max8(temp, vMaxColumn);
-		if (temp >= terminate) break;
+		/* Record the max score of current column. */
+		max8(maxColumn[i], vMaxColumn);
+		if (maxColumn[i] == terminate) break;
 	}
 
 	/* Trace the alignment ending position on read. */

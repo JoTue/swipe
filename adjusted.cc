@@ -12,6 +12,8 @@
 
 #define MINIMUM_LENGTH_NEAR_IDENTICAL 50
 
+#ifdef TIME_PAIRCOUNT
+#ifdef COMPO_THRESHOLDS
 // count matrix_adjust_rule
 long mar2_0;
 long mar2_4;
@@ -19,6 +21,8 @@ long mar2_other;
 long mar3_0;
 long mar3_4;
 long mar3_other;
+#endif //COMPO_THRESHOLDS
+#endif //TIME_PAIRCOUNT
 
 /** pseudocounts for relative-entropy-based score matrix adjustment */
 int kReMatrixAdjustmentPseudocounts = 20;
@@ -169,21 +173,13 @@ int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *
                          &LambdaRatio);
 #endif //COMPO_THRESHOLDS
 
-    // // START REMOVE
-    // // TODO print matrix AFTER adjustment
-    // printf("Matrix AFTER_3:\n");
-    // for (int a = 0; a < 28; a++){
-    //   for (int b = 0; b < 28; b++) {
-    //     printf("%d ", sbp->matrix->data[b][a]);
-    //   }
-    //   printf("\n");
-    // }
-    // // END REMOVE
-
 	// /*
     // printf("Lambda Ratio: %.4f\npvalueForThisPair: %.4f\nmatrix_adjust_rule: %d\n", LambdaRatio, pvalueForThisPair, matrix_adjust_rule);
 	// printf("query length: %ld\nsubject length: %d\n", query.aa[0].len, subject_length);
 	// printf("ungappedLambda: %.4f\n", scaledMatrixInfo->ungappedLambda);
+
+#ifdef TIME_PAIRCOUNT
+#ifdef COMPO_THRESHOLDS
     if (stage == 2){
         switch (*matrix_adjust_rule) {
             case eCompoScaleOldMatrix:
@@ -207,6 +203,9 @@ int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *
                 mar3_other++;
         }
     }
+#endif //COMPO_THRESHOLDS
+#endif //TIME_PAIRCOUNT
+
 	// printf("Query and Subject AA Composition:\n");
 	// print_AminoAcidComposition(&query_composition, &subject_composition);
 	// */

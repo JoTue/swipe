@@ -26,6 +26,7 @@
 
 export LD_LIBRARY_PATH=/apps/compat/8.6/lib64:/apps/compat/8.6/lib:/apps/python3/3.10.4/lib:/apps/lua/5.4.2/lib:/apps/gcc/12.1.0/lib64:/apps/gcc/12.1.0/lib:/apps/java/14.0.2/lib/server:/apps/R/4.2.0/lib64:/apps/slurm/22.05.2/lib/slurm:/apps/slurm/22.05.2/lib:/scratch/cube/tuechler/swipe_LIBS/custom_lib/3/ncbi-blast-2.13.0+-src/c++/ReleaseMT/lib
 # export LD_LIBRARY_PATH=/apps/compat/8.6/lib64:/apps/compat/8.6/lib:/apps/python3/3.10.4/lib:/apps/lua/5.4.2/lib:/apps/gcc/12.1.0/lib64:/apps/gcc/12.1.0/lib:/apps/java/14.0.2/lib/server:/apps/R/4.2.0/lib64:/apps/slurm/22.05.2/lib/slurm:/apps/slurm/22.05.2/lib:/scratch/cube/tuechler/swipe_LIBS/lib
+# export LD_LIBRARY_PATH=/apps/compat/8.6/lib64:/apps/compat/8.6/lib:/apps/python3/3.10.4/lib:/apps/lua/5.4.2/lib:/apps/gcc/12.1.0/lib64:/apps/gcc/12.1.0/lib:/apps/java/14.0.2/lib/server:/apps/R/4.2.0/lib64:/apps/slurm/22.05.2/lib/slurm:/apps/slurm/22.05.2/lib:/scratch/cube/tuechler/simap2/string2020/clip/lib
 
 # BLAST lib with compo_thresholds: /scratch/cube/tuechler/swipe_LIBS/custom_lib/3
 
@@ -35,7 +36,7 @@ MPI_LINK=`mpicxx --showme:link`
 COMMON=-g
 #COMMON=-pg -g
 
-COMPILEOPT=-Wall -O3 -DCOMPO_ADJUSTMENT -DCOMPO_THRESHOLDS #-DSWLIB_8BIT #-DCOMPO_THRESHOLDS
+COMPILEOPT=-Wall -O3 -DCOMPO_ADJUSTMENT -DCOMPO_THRESHOLDS #-DTIME_PAIRCOUNT #-DSWLIB_8BIT #-DCOMPO_THRESHOLDS
 
 LIBS=-lpthread -lcomposition_adjustment -lxblast -lxncbi
 
