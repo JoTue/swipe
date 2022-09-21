@@ -1,24 +1,18 @@
 /*
     SWIPE
     Smith-Waterman database searches with Inter-sequence Parallel Execution
-
-    Copyright (C) 2008-2014 Torbjorn Rognes, University of Oslo, 
-
+    Copyright (C) 2008-2013 Torbjorn Rognes, University of Oslo,
     Oslo University Hospital and Sencel Bioinformatics AS
-
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
     published by the Free Software Foundation, either version 3 of the
     License, or (at your option) any later version.
-
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
-
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
     Contact: Torbjorn Rognes <torognes@ifi.uio.no>,
     Department of Informatics, University of Oslo,
     PO Box 1080 Blindern, NO-0316 Oslo, Norway
@@ -291,7 +285,7 @@ void diff(struct aligner_info * aip,
 	  // -A--
 	  // BBBB
 
-	  long Score = (scorematrix + (b_seq[b_pos+j]<<5))[(int)(a_seq[a_pos])] - r * (N-1);
+	  long Score = (scorematrix + (a_seq[a_pos]<<5))[(int)(b_seq[b_pos+j])] - r * (N-1);
 
 	  if (j > 0)
 	    Score -= q;
@@ -358,7 +352,7 @@ void diff(struct aligner_info * aip,
 	      f = MAX(f, h - q) - r;
 	      EE[j] = MAX(EE[j], HH[j] - q) - r;
 
-	      h = p + (scorematrix + (b_seq[b_pos+j-1]<<5))[(int)(a_seq[a_pos+i-1])];
+	      h = p + (scorematrix + (a_seq[a_pos+i-1]<<5))[(int)(b_seq[b_pos+j-1])];
 
 	      if (f > h)
 		h = f;
@@ -399,7 +393,7 @@ void diff(struct aligner_info * aip,
 	      f = MAX(f, h - q) - r;
 	      YY[j] = MAX(YY[j], XX[j] - q) - r;
 
-	      h = p + (scorematrix + (b_seq[b_pos+N-j]<<5))[(int)(a_seq[a_pos+M-i])];
+	      h = p + (scorematrix + (a_seq[a_pos+M-i]<<5))[(int)(b_seq[b_pos+N-j])];
 
 	      if (f > h)
 		h = f;

@@ -31,10 +31,6 @@
 double time_stage1 = 0.0;
 double time_stage2 = 0.0;
 double time_stage2b = 0.0;
-double time_stage2b1 = 0.0;
-double time_stage2b2 = 0.0;
-double time_stage2b3 = 0.0;
-double time_compo = 0.0;
 double time_stage2c = 0.0;
 double time_stage2d = 0.0;
 double time_stage2_init = 0.0;
@@ -898,9 +894,6 @@ void align_adjusted() {
     Blast_AminoAcidComposition subject_composition, subject_composition_unmasked;
 
     // OLD:
-#ifdef TIME_PAIRCOUNT
-    auto begin_compo = std::chrono::high_resolution_clock::now();
-#endif //TIME_PAIRCOUNT
     db_mapsequences(dbt, seqno, seqno);
     db_getsequence(dbt, seqno, dstrand, dframe, &subject_sequence_masked, &subject_length, &ntlen, 0);
     subject_length--;
@@ -914,11 +907,6 @@ void align_adjusted() {
       Blast_ReadAaComposition(&subject_composition_unmasked, BLASTAA_SIZE, (const Uint1*)subject_sequence_unmasked, subject_length);
       symm_check = (mask == COMPOSITIONAL_MASK_SYMM || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM) && (subject_composition.numTrueAminoAcids < subject_length || query.composition.numTrueAminoAcids < query_length);
     }
-
-#ifdef TIME_PAIRCOUNT
-    auto end_compo = std::chrono::high_resolution_clock::now();
-    time_compo += (end_compo - begin_compo).count();
-#endif //TIME_PAIRCOUNT
 
     // // NEW:
     // get_subject_composition(seqno, &subject_composition);
@@ -1379,7 +1367,6 @@ void align_adjusted() {
 //     matchStart = queryStart = matchEnd = queryEnd = 0;
 //     Blast_AminoAcidComposition subject_composition, subject_composition_unmasked;
 
-//     auto begin_compo = std::chrono::high_resolution_clock::now();
 //     //TODO: compute subject_composition only once and store it in a global repository
 //     // // OLD:
 //     // auto begin2b1 = std::chrono::high_resolution_clock::now();
@@ -1417,7 +1404,6 @@ void align_adjusted() {
 //     // time init, aa composition
 //     auto end2b = std::chrono::high_resolution_clock::now();
 //     time_stage2b += (end2b - begin2).count();
-//     time_compo += (end2b - begin_compo).count();
 
 //     if (compo_adjust_mode == eNoCompositionBasedStats || score >= skip_stage2_score) {
 //        // time stage 2
@@ -1494,7 +1480,7 @@ void align_adjusted() {
 //     file_db.close();
 
 //     // write query_sequence to file
-//     aa_seq = int2aa((char*)query_sequence, query_length); // TODO other soft-masking versions
+//     aa_seq = int2aa((char*)query_sequence, query_length);
 //     string file_query_str(temporary_dir);
 //     file_query_str +=  "/query.fa";
 //     std::ofstream file_query(file_query_str);
@@ -2472,9 +2458,8 @@ void align_adjusted4() {
 
 #ifdef TIME_PAIRCOUNT
     pairs2++;
-#endif //TIME_PAIRCOUNT
-
     auto begin2 = std::chrono::high_resolution_clock::now();
+#endif //TIME_PAIRCOUNT
 
     // if stage1-score >= skip_stage2_score, skip (bypass) stage2 for this hit and pass it on to stage3
     if (compo_adjust_mode == eNoCompositionBasedStats || score >= skip_stage2_score) {
@@ -2493,9 +2478,6 @@ void align_adjusted4() {
     matchStart = queryStart = matchEnd = queryEnd = 0;
 
 //     // OLD:
-// #ifdef TIME_PAIRCOUNT
-//     auto begin_compo = std::chrono::high_resolution_clock::now();
-// #endif //TIME_PAIRCOUNT
 //     db_mapsequences(dbt, seqno, seqno);
 //     db_getsequence(dbt, seqno, dstrand, dframe, &subject_sequence_masked, &subject_length, &ntlen, 0);
 //     subject_length--;
@@ -2509,10 +2491,7 @@ void align_adjusted4() {
 //       Blast_ReadAaComposition(&subject_composition_unmasked, BLASTAA_SIZE, (const Uint1*)subject_sequence_unmasked, subject_length);
 //       symm_check = (mask == COMPOSITIONAL_MASK_SYMM || mask == COMPOSITIONAL_MASK_MATRIXONLY_SYMM) && (subject_composition.numTrueAminoAcids < subject_length || query.composition.numTrueAminoAcids < query_length);
 //     }
-// #ifdef TIME_PAIRCOUNT
-//     auto end_compo = std::chrono::high_resolution_clock::now();
-//     time_compo += (end_compo - begin_compo).count();
-// #endif //TIME_PAIRCOUNT
+
     // NEW:
     get_subject_composition(seqno, &subject_composition);
     get_subject_composition_unmasked(seqno, &subject_composition_unmasked);
@@ -2599,7 +2578,7 @@ void align_adjusted4() {
   file_matrix.close();
 
   // write query_sequence to file
-  aa_seq = int2aa((char*)query_sequence, query_length); // TODO other soft-masking versions
+  aa_seq = int2aa((char*)query_sequence, query_length);
   string file_query_str(temporary_dir);
   file_query_str +=  "/query.fa";
   std::ofstream file_query(file_query_str);
@@ -4570,7 +4549,6 @@ char* get_subject_sequence_unmasked(long seqno)
 
 void compute_subject_compositions()
 {
-  // TODO: add subject_composition_unmasked?
   struct db_thread_s * dbt = db_thread_create();
   long seqno;
   long dstrand;
@@ -4758,14 +4736,14 @@ int main(int argc, char**argv)
     align_adjusted_init();
 
 #ifdef TIME_PAIRCOUNT
-    auto begin_compo = std::chrono::high_resolution_clock::now();
+    auto begin2b = std::chrono::high_resolution_clock::now();
 #endif //TIME_PAIRCOUNT
 
     compute_subject_compositions();
 
 #ifdef TIME_PAIRCOUNT
-    auto end_compo = std::chrono::high_resolution_clock::now();
-    time_compo += (end_compo - begin_compo).count();
+    auto end2b = std::chrono::high_resolution_clock::now();
+    time_stage2b += (end2b - begin2b).count();
 #endif //TIME_PAIRCOUNT
 
 #endif //COMPO_ADJUSTMENT
@@ -4841,10 +4819,6 @@ int main(int argc, char**argv)
   std::cout << "time_stage1: " << time_stage1 * 1e-9 << " s\n";
   std::cout << "time_stage2: " << time_stage2 * 1e-9 << " s\n";
   std::cout << "time_stage2b: " << time_stage2b * 1e-9 << " s\n";
-  std::cout << "time_stage2b1: " << time_stage2b1 * 1e-9 << " s\n";
-  std::cout << "time_stage2b2: " << time_stage2b2 * 1e-9 << " s\n";
-  std::cout << "time_stage2b3: " << time_stage2b3 * 1e-9 << " s\n";
-  std::cout << "time_compo: " << time_compo * 1e-9 << " s\n";
   std::cout << "time_stage2c: " << time_stage2c * 1e-9 << " s\n";
   std::cout << "time_stage2d: " << time_stage2d * 1e-9 << " s\n";
   std::cout << "time_stage2_init: " << time_stage2_init * 1e-9 << " s\n";

@@ -13,7 +13,6 @@
 #define MINIMUM_LENGTH_NEAR_IDENTICAL 50
 
 #ifdef TIME_PAIRCOUNT
-#ifdef COMPO_THRESHOLDS
 // count matrix_adjust_rule
 long mar2_0;
 long mar2_4;
@@ -21,7 +20,6 @@ long mar2_other;
 long mar3_0;
 long mar3_4;
 long mar3_other;
-#endif //COMPO_THRESHOLDS
 #endif //TIME_PAIRCOUNT
 
 /** pseudocounts for relative-entropy-based score matrix adjustment */
@@ -179,7 +177,6 @@ int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *
 	// printf("ungappedLambda: %.4f\n", scaledMatrixInfo->ungappedLambda);
 
 #ifdef TIME_PAIRCOUNT
-#ifdef COMPO_THRESHOLDS
     if (stage == 2){
         switch (*matrix_adjust_rule) {
             case eCompoScaleOldMatrix:
@@ -203,7 +200,6 @@ int compo_adjusted_matrix(Blast_CompositionWorkspace * NRrecord, BlastScoreBlk *
                 mar3_other++;
         }
     }
-#endif //COMPO_THRESHOLDS
 #endif //TIME_PAIRCOUNT
 
 	// printf("Query and Subject AA Composition:\n");
