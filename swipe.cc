@@ -90,7 +90,7 @@ long skipped_stage2 = 0;
 #define DEFAULT_THRESH_DISTANCE 0.16
 #define DEFAULT_THRESH_ANGLE 70.0
 #define DEFAULT_TEMPORARY_DIR ""
-#define DEFAULT_SSW_BINARY_DIR "/scratch/cube/tuechler/swipe/SSW/bin"
+#define DEFAULT_SSW_BINARY_DIR "SSW/bin"
 #define DEFAULT_ALIGN_ADJUSTED_VERSION 1
 
 char * progname;
@@ -4084,8 +4084,8 @@ void work()
       align_adjusted();
     else if (align_adjusted_version == 4)
       align_adjusted4();
-    else if (align_adjusted_version == 5)
-      align_adjusted5();
+    // else if (align_adjusted_version == 5)
+    //   align_adjusted5();
     else {
       fprintf(stderr, "Invalid align_adjusted version (%ld)\n", align_adjusted_version);
       exit(1);
